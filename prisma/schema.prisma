@@ -1,14 +1,159 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id         String     @id @default(uuid())
+  userId     String
+  name       String
+  subdomain  String     @unique
+  address    String?
+  logoUrl    String?
+  coverImage String?
+  createdAt  DateTime   @default(now())
+  categories Category[]
+  products   Product[]
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@index([subdomain])
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  storeId   String
+  name      String
+  createdAt DateTime  @default(now())
+  active    Boolean   @default(true)
+  order     Int       @default(0)
+  store     Store     @relation(fields: [storeId], references: [id])
+  products  Product[]
+
+  @@index([storeId])
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  password  String
+  createdAt DateTime @default(now())
+  stores    Store[]
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  categoryId  String
+  name        String
+  price       Float
+  description String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  storeId     String
+  active      Boolean  @default(true)
+
+  order Int @default(0)
+
+  pdv String? @default("")
+
+  category           Category            @relation(fields: [categoryId], references: [id])
+  store              Store               @relation(fields: [storeId], references: [id])
+  productComplements ProductComplement[]
+
+  // ✔ RELAÇÃO CORRETA
+  orderItems OrderItem[] @relation("ProductToOrderItems")
+
+  @@index([categoryId])
+  @@index([storeId])
+}
+
+model ComplementGroup {
+  id                 String              @id @default(uuid())
+  name               String
+  required           Boolean             @default(false)
+  min                Int                 @default(0)
+  max                Int                 @default(1)
+  createdAt          DateTime            @default(now())
+  active             Boolean             @default(true)
+  type               String              @default("multiple")
+  description        String?             @default("")
+  items              Complement[]
+  productComplements ProductComplement[]
+}
+
+model Complement {
+  id                 String              @id @default(uuid())
+  groupId            String
+  name               String
+  price              Float               @default(0)
+  active             Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  imageUrl           String?
+  description        String?
+  group              ComplementGroup     @relation(fields: [groupId], references: [id])
+  productComplements ProductComplement[]
+
+  @@index([groupId])
+}
+
+model ProductComplement {
+  id           String  @id @default(uuid())
+  productId    String
+  complementId String?
+  groupId      String
+
+  order  Int     @default(0)
+  active Boolean @default(true)
+
+  complement Complement?     @relation(fields: [complementId], references: [id])
+  group      ComplementGroup @relation(fields: [groupId], references: [id])
+  product    Product         @relation(fields: [productId], references: [id])
+
+  @@unique([productId, groupId])
+  @@index([productId])
+  @@index([groupId])
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+  orders    Order[]
+}
+
+model Order {
+  id            String   @id @default(uuid())
+  status        String   @default("analysis")
+  total         Float    @default(0)
+  paymentMethod String?
+  deliveryFee   Float?   @default(0)
+  createdAt     DateTime @default(now())
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  items OrderItem[]
+}
+
+model OrderItem {
+  id          String @id @default(uuid())
+  orderId     String
+  productId   String
+  quantity    Int    @default(1)
+  unitPrice   Float
+  complements Json?
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  // ✔ RELAÇÃO CORRETA — mesmo nome da relação usada em Product
+  product Product @relation("ProductToOrderItems", fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
 }
