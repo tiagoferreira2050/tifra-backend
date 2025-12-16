@@ -48,7 +48,6 @@ router.post("/update-subdomain", async (req, res) => {
       });
     }
 
-    // verifica se outro store já usa o subdomínio
     const exists = await prisma.store.findFirst({
       where: {
         subdomain,
@@ -76,6 +75,31 @@ router.post("/update-subdomain", async (req, res) => {
   } catch (err) {
     console.error("POST /stores/update-subdomain error:", err);
     res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+/* ===================================================
+   GET /stores/by-user/:userId - BUSCAR STORE DO USUÁRIO
+=================================================== */
+router.get("/by-user/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const store = await prisma.store.findFirst({
+      where: { userId },
+    });
+
+    if (!store) {
+      return res.status(404).json({
+        error: "Store não encontrada para este usuário",
+      });
+    }
+
+    return res.json(store);
+
+  } catch (err) {
+    console.error("GET /stores/by-user/:userId error:", err);
+    return res.status(500).json({ error: "Erro interno" });
   }
 });
 
