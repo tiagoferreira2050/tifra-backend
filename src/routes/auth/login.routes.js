@@ -8,6 +8,10 @@ export default async function login(req, res) {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email e senha obrigatórios" });
+    }
+
     const user = await prisma.user.findUnique({
       where: { email },
     });
@@ -22,8 +26,6 @@ export default async function login(req, res) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    console.log("JWT sendo usado:", process.env.JWT_SECRET);
-
     const token = jwt.sign(
       {
         id: user.id,
@@ -34,18 +36,16 @@ export default async function login(req, res) {
       { expiresIn: "7d" }
     );
 
-    // ✅ COOKIE 100% COMPATÍVEL COM app.tifra.com.br
-    res.cookie("tifra_token", token, {
-      httpOnly: true,
-      secure: true,          // 🔥 obrigatório em HTTPS
-      sameSite: "none",      // 🔥 obrigatório cross-domain
-      domain: ".tifra.com.br", // 🔥 ESSENCIAL (esse era o bug)
-      path: "/",
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 dias
-    });
+    // ❌ NÃO CRIA COOKIE NO BACKEND
+    // ❌ Railway não pode setar cookie para tifra.com.br
 
     return res.json({
-      message: "Login successful",
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      },
     });
 
   } catch (error) {
