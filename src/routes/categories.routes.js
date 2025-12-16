@@ -1,14 +1,23 @@
 import { Router } from "express";
 import { prisma } from "../prisma/client.js";
+import { verifyAuth } from "../middlewares/verifyAuth.js";
 
 const router = Router();
+
+/* ===================================================
+   🔐 PROTEGE TODAS AS ROTAS
+=================================================== */
+router.use(verifyAuth);
 
 /* ===================================================
    GET - LISTAR (ordenado por `order`)
 =================================================== */
 router.get("/", async (req, res) => {
   try {
+    const storeId = req.user.storeId;
+
     const categories = await prisma.category.findMany({
+      where: { storeId },
       orderBy: [
         { order: "asc" },
         { createdAt: "asc" },
@@ -35,11 +44,12 @@ router.get("/", async (req, res) => {
 =================================================== */
 router.post("/", async (req, res) => {
   try {
-    const { name, storeId, products = [] } = req.body;
+    const { name, products = [] } = req.body;
+    const storeId = req.user.storeId;
 
-    if (!name || !storeId) {
+    if (!name) {
       return res.status(400).json({
-        error: "Nome e storeId obrigatórios",
+        error: "Nome obrigatório",
       });
     }
 
@@ -56,7 +66,7 @@ router.post("/", async (req, res) => {
                 description: p.description ?? null,
                 imageUrl: p.imageUrl ?? null,
                 active: p.active ?? true,
-                storeId: storeId,
+                storeId,
               })),
             }
           : undefined,
@@ -82,6 +92,7 @@ router.post("/", async (req, res) => {
 router.put("/order", async (req, res) => {
   try {
     const { orders } = req.body;
+    const storeId = req.user.storeId;
 
     if (!Array.isArray(orders) || orders.length === 0) {
       return res.status(400).json({
@@ -104,8 +115,8 @@ router.put("/order", async (req, res) => {
             ? item.order
             : 0;
 
-        return prisma.category.update({
-          where: { id: item.id },
+        return prisma.category.updateMany({
+          where: { id: item.id, storeId },
           data: { order: orderValue },
         });
       });
@@ -131,6 +142,7 @@ router.put("/order", async (req, res) => {
 router.patch("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    const storeId = req.user.storeId;
 
     if (!id) {
       return res.status(400).json({ error: "ID inválido" });
@@ -148,8 +160,8 @@ router.patch("/:id", async (req, res) => {
       });
     }
 
-    const updated = await prisma.category.update({
-      where: { id },
+    const updated = await prisma.category.updateMany({
+      where: { id, storeId },
       data: {
         ...(name !== undefined && { name }),
         ...(active !== undefined && { active }),
@@ -170,15 +182,15 @@ router.patch("/:id", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    const storeId = req.user.storeId;
+    const { name, active } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: "ID inválido" });
     }
 
-    const { name, active } = req.body;
-
-    const updated = await prisma.category.update({
-      where: { id },
+    const updated = await prisma.category.updateMany({
+      where: { id, storeId },
       data: { name, active },
     });
 
@@ -195,18 +207,15 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    const storeId = req.user.storeId;
 
     if (!id) {
       return res.json({ success: true });
     }
 
-    try {
-      await prisma.category.delete({
-        where: { id },
-      });
-    } catch (err) {
-      console.error("Erro ao excluir no Prisma:", err);
-    }
+    await prisma.category.deleteMany({
+      where: { id, storeId },
+    });
 
     res.json({ success: true });
   } catch (err) {
