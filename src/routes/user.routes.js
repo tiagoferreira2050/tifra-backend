@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { prisma } from "../prisma/client.js";
-import { verifyAuth } from "../middlewares/verifyAuth.js";
+
+// ✅ CAMINHO CORRETO DO MIDDLEWARE
+import { verifyAuth } from "./auth/_middlewares/auth.middleware.js";
 
 const router = Router();
 
