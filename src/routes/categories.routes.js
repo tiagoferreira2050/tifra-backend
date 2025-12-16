@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../prisma/client.js";
-import { verifyAuth } from "../middlewares/verifyAuth.js";
+import { verifyAuth } from "./auth/_middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -18,16 +18,10 @@ router.get("/", async (req, res) => {
 
     const categories = await prisma.category.findMany({
       where: { storeId },
-      orderBy: [
-        { order: "asc" },
-        { createdAt: "asc" },
-      ],
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       include: {
         products: {
-          orderBy: [
-            { order: "asc" },
-            { createdAt: "asc" },
-          ],
+          orderBy: [{ order: "asc" }, { createdAt: "asc" }],
         },
       },
     });
@@ -40,7 +34,7 @@ router.get("/", async (req, res) => {
 });
 
 /* ===================================================
-   POST - CRIAR (COM PRODUTOS ANINHADOS)
+   POST - CRIAR
 =================================================== */
 router.post("/", async (req, res) => {
   try {
@@ -48,16 +42,13 @@ router.post("/", async (req, res) => {
     const storeId = req.user.storeId;
 
     if (!name) {
-      return res.status(400).json({
-        error: "Nome obrigatório",
-      });
+      return res.status(400).json({ error: "Nome obrigatório" });
     }
 
     const category = await prisma.category.create({
       data: {
         name,
         storeId,
-
         products: products.length
           ? {
               create: products.map((p) => ({
@@ -71,9 +62,7 @@ router.post("/", async (req, res) => {
             }
           : undefined,
       },
-      include: {
-        products: true,
-      },
+      include: { products: true },
     });
 
     res.status(201).json(category);
@@ -87,7 +76,7 @@ router.post("/", async (req, res) => {
 });
 
 /* ===================================================
-   PUT - UPDATE ORDER ( /categories/order )
+   PUT - UPDATE ORDER
 =================================================== */
 router.put("/order", async (req, res) => {
   try {
@@ -95,37 +84,19 @@ router.put("/order", async (req, res) => {
     const storeId = req.user.storeId;
 
     if (!Array.isArray(orders) || orders.length === 0) {
-      return res.status(400).json({
-        error: "Orders inválido ou vazio",
-      });
+      return res.status(400).json({ error: "Orders inválido ou vazio" });
     }
 
     const uniqueOrders = Array.from(
       new Map(orders.map((item) => [item.id, item])).values()
     );
 
-    const updates = uniqueOrders
-      .filter(
-        (item) =>
-          typeof item?.id === "string" && item.id.trim().length > 0
-      )
-      .map((item) => {
-        const orderValue =
-          typeof item.order === "number" && !isNaN(item.order)
-            ? item.order
-            : 0;
-
-        return prisma.category.updateMany({
-          where: { id: item.id, storeId },
-          data: { order: orderValue },
-        });
-      });
-
-    if (updates.length === 0) {
-      return res.status(400).json({
-        error: "Nenhum item válido enviado",
-      });
-    }
+    const updates = uniqueOrders.map((item) =>
+      prisma.category.updateMany({
+        where: { id: item.id, storeId },
+        data: { order: Number(item.order) || 0 },
+      })
+    );
 
     await prisma.$transaction(updates);
 
@@ -137,28 +108,13 @@ router.put("/order", async (req, res) => {
 });
 
 /* ===================================================
-   PATCH - UPDATE PARCIAL ( /categories/:id )
+   PATCH - UPDATE PARCIAL
 =================================================== */
 router.patch("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const storeId = req.user.storeId;
-
-    if (!id) {
-      return res.status(400).json({ error: "ID inválido" });
-    }
-
     const { name, active, order } = req.body ?? {};
-
-    if (
-      name === undefined &&
-      active === undefined &&
-      order === undefined
-    ) {
-      return res.status(400).json({
-        error: "Nenhum campo enviado",
-      });
-    }
 
     const updated = await prisma.category.updateMany({
       where: { id, storeId },
@@ -177,17 +133,13 @@ router.patch("/:id", async (req, res) => {
 });
 
 /* ===================================================
-   PUT - UPDATE NAME / ACTIVE ( /categories/:id )
+   PUT - UPDATE NAME / ACTIVE
 =================================================== */
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const storeId = req.user.storeId;
     const { name, active } = req.body;
-
-    if (!id) {
-      return res.status(400).json({ error: "ID inválido" });
-    }
 
     const updated = await prisma.category.updateMany({
       where: { id, storeId },
@@ -202,16 +154,12 @@ router.put("/:id", async (req, res) => {
 });
 
 /* ===================================================
-   DELETE ( /categories/:id )
+   DELETE
 =================================================== */
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const storeId = req.user.storeId;
-
-    if (!id) {
-      return res.json({ success: true });
-    }
 
     await prisma.category.deleteMany({
       where: { id, storeId },
