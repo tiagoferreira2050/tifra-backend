@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
 import { PrismaClient } from "@prisma/client";
 
 import authRoutes from "./src/routes/auth/index.js";
@@ -24,6 +25,10 @@ app.use(
     credentials: true,
   })
 );
+
+// 🔥 ESSENCIAL PARA COOKIE HTTPONLY
+app.use(cookieParser());
+
 app.use(express.json());
 
 // 🔥 health check
