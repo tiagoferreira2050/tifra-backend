@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";  // Alterado para bcryptjs
 import jwt from "jsonwebtoken";
 
 const prisma = new PrismaClient();
@@ -16,6 +16,7 @@ export default async function login(req, res) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
+    // Usando bcryptjs para comparar a senha
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
