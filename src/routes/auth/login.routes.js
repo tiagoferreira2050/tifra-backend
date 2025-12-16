@@ -14,9 +14,6 @@ export default async function login(req, res) {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      include: {
-        store: true, // 🔥 GARANTE O STORE
-      },
     });
 
     if (!user) {
@@ -30,7 +27,9 @@ export default async function login(req, res) {
     }
 
     if (!user.storeId) {
-      return res.status(400).json({ error: "Usuário sem loja vinculada" });
+      return res
+        .status(400)
+        .json({ error: "Usuário sem loja vinculada" });
     }
 
     const token = jwt.sign(
@@ -38,7 +37,7 @@ export default async function login(req, res) {
         id: user.id,
         email: user.email,
         name: user.name,
-        storeId: user.storeId, // 🔥 ISSO RESOLVE TUDO
+        storeId: user.storeId, // 🔥 AGORA SIM
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
@@ -53,7 +52,6 @@ export default async function login(req, res) {
         storeId: user.storeId,
       },
     });
-
   } catch (error) {
     console.error("ERRO NO LOGIN:", error);
     return res.status(500).json({ error: "Server error" });
