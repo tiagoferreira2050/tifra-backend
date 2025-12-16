@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";  // Alterado para bcryptjs
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 const prisma = new PrismaClient();
@@ -16,14 +16,12 @@ export default async function login(req, res) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // Usando bcryptjs para comparar a senha
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // DEBUG → Ver secret carregado
     console.log("JWT sendo usado:", process.env.JWT_SECRET);
 
     const token = jwt.sign(
@@ -36,17 +34,17 @@ export default async function login(req, res) {
       { expiresIn: "7d" }
     );
 
-    // seta cookie igual ao frontend
+    // ✅ COOKIE CORRETO PARA PRODUÇÃO
     res.cookie("tifra_token", token, {
       httpOnly: true,
-      secure: false, // depois em produção vira true
+      secure: true,        // 🔥 OBRIGATÓRIO
+      sameSite: "none",    // 🔥 OBRIGATÓRIO
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 1000 * 60 * 60 * 24 * 7,
     });
 
     return res.json({
       message: "Login successful",
-      token: token,
     });
 
   } catch (error) {
