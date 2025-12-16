@@ -18,10 +18,10 @@ dotenv.config();
 const prisma = new PrismaClient();
 const app = express();
 
-// 🔥 middlewares globais
+// 🔥 CORS CORRETO PARA COOKIE HTTPONLY
 app.use(
   cors({
-    origin: true,
+    origin: "https://app.tifra.com.br",
     credentials: true,
   })
 );

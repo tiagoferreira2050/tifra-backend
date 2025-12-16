@@ -1,26 +1,16 @@
 import { Router } from "express";
 import { prisma } from "../prisma/client.js";
-import jwt from "jsonwebtoken";
+import { verifyAuth } from "../middlewares/verifyAuth.js";
 
 const router = Router();
 
 /* ===================================================
    GET /user - DADOS DO USUÁRIO LOGADO
 =================================================== */
-router.get("/", async (req, res) => {
+router.get("/", verifyAuth, async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "No token provided" });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
     const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
+      where: { id: req.userId },
       select: {
         id: true,
         name: true,
@@ -29,11 +19,15 @@ router.get("/", async (req, res) => {
       },
     });
 
-    res.json({ user });
+    if (!user) {
+      return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
+    return res.json({ user });
 
   } catch (err) {
-    console.error("TOKEN ERROR:", err);
-    res.status(401).json({ error: "Invalid token" });
+    console.error("USER ERROR:", err);
+    return res.status(500).json({ error: "Erro interno" });
   }
 });
 
