@@ -27,9 +27,9 @@ export default async function login(req, res) {
     }
 
     if (!user.storeId) {
-      return res
-        .status(400)
-        .json({ error: "Usuário sem loja vinculada" });
+      return res.status(400).json({
+        error: "Usuário sem loja vinculada",
+      });
     }
 
     const token = jwt.sign(
@@ -37,7 +37,7 @@ export default async function login(req, res) {
         id: user.id,
         email: user.email,
         name: user.name,
-        storeId: user.storeId, // 🔥 AGORA SIM
+        storeId: user.storeId, // 🔥 ESSENCIAL
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
