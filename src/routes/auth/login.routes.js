@@ -1,24 +1,25 @@
-import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 const prisma = new PrismaClient();
 
-export async function POST(req: Request) {
+export default async function login(req, res) {
   try {
-    const { email, password } = await req.json();
+    const { email, password } = req.body;
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
 
     if (!user) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
     // DEBUG → Ver secret carregado
@@ -30,26 +31,25 @@ export async function POST(req: Request) {
         email: user.email,
         name: user.name,
       },
-      process.env.JWT_SECRET!,
+      process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    const response = NextResponse.json({
-      message: "Login successful",
-      token: token
-    });
-
-    response.cookies.set("tifra_token", token, {
+    // seta cookie igual ao frontend
+    res.cookie("tifra_token", token, {
       httpOnly: true,
-      secure: false,
+      secure: false, // depois em produção vira true
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
 
-    return response;
+    return res.json({
+      message: "Login successful",
+      token: token,
+    });
 
   } catch (error) {
     console.error("ERRO NO LOGIN:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return res.status(500).json({ error: "Server error" });
   }
 }

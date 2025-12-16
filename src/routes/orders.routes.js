@@ -1,31 +1,33 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { Router } from "express";
+import { prisma } from "../prisma/client.js";
 
-export async function POST(req: Request) {
+const router = Router();
+
+/* ===================================================
+   POST /orders - CRIAR PEDIDO
+=================================================== */
+router.post("/", async (req, res) => {
   try {
-    const body = await req.json();
+    const body = req.body;
 
-    // 🔥 Ajuste para aceitar o payload do NovoPedidoDrawer
+    // 🔥 Compatível com NovoPedidoDrawer
     const customerName = body.customerName ?? body.customer;
     const customerPhone = body.customerPhone ?? body.phone ?? "";
     const customerAddress = body.customerAddress ?? body.address ?? "";
     const paymentMethod = body.paymentMethod;
     const deliveryFee = body.deliveryFee || 0;
 
-    // 🔥 Converter items do formato do Drawer para o formato da sua API
+    // 🔥 Normalizar itens
     const items =
-      body.items?.map((it: any) => ({
+      body.items?.map((it) => ({
         productId: it.productId,
         quantity: it.quantity ?? it.qty ?? 1,
         unitPrice: it.unitPrice ?? it.price ?? 0,
         complements: it.complements ?? it.selectedComplements ?? [],
       })) ?? [];
 
-    if (!items || items.length === 0) {
-      return NextResponse.json(
-        { error: "Nenhum item no pedido" },
-        { status: 400 }
-      );
+    if (!items.length) {
+      return res.status(400).json({ error: "Nenhum item no pedido" });
     }
 
     // 1️⃣ Criar ou reaproveitar cliente
@@ -49,11 +51,11 @@ export async function POST(req: Request) {
 
     // 2️⃣ Calcular total
     const totalItems = items.reduce(
-      (acc: number, item: any) => acc + item.unitPrice * item.quantity,
+      (acc, item) => acc + item.unitPrice * item.quantity,
       0
     );
 
-    const total = totalItems + (deliveryFee || 0);
+    const total = totalItems + deliveryFee;
 
     // 3️⃣ Criar pedido
     const order = await prisma.order.create({
@@ -61,14 +63,14 @@ export async function POST(req: Request) {
         status: "analysis",
         total,
         paymentMethod: paymentMethod || null,
-        deliveryFee: deliveryFee || 0,
+        deliveryFee,
         customerId: customer?.id || null,
       },
     });
 
-    // 4️⃣ Criar itens no banco
+    // 4️⃣ Criar itens
     await prisma.$transaction(
-      items.map((item: any) =>
+      items.map((item) =>
         prisma.orderItem.create({
           data: {
             orderId: order.id,
@@ -94,18 +96,18 @@ export async function POST(req: Request) {
 
     // 6️⃣ Normalizar para o painel
     const normalized = {
-      id: fullOrder!.id,
-      status: fullOrder!.status,
-      total: fullOrder!.total,
-      paymentMethod: fullOrder!.paymentMethod,
-      createdAt: fullOrder!.createdAt,
+      id: fullOrder.id,
+      status: fullOrder.status,
+      total: fullOrder.total,
+      paymentMethod: fullOrder.paymentMethod,
+      createdAt: fullOrder.createdAt,
 
-      customer: fullOrder!.customer?.name || "",
-      phone: fullOrder!.customer?.phone || "",
-      address: fullOrder!.customer?.address || "",
-      shortAddress: fullOrder!.customer?.address?.split(",")[0] || "",
+      customer: fullOrder.customer?.name || "",
+      phone: fullOrder.customer?.phone || "",
+      address: fullOrder.customer?.address || "",
+      shortAddress: fullOrder.customer?.address?.split(",")[0] || "",
 
-      items: fullOrder!.items.map((i) => ({
+      items: fullOrder.items.map((i) => ({
         id: i.id,
         quantity: i.quantity,
         productName: i.product?.name,
@@ -114,23 +116,24 @@ export async function POST(req: Request) {
       })),
     };
 
-    return NextResponse.json(normalized, { status: 201 });
+    res.status(201).json(normalized);
+
   } catch (err) {
-    console.error("POST /orders error", err);
-    return NextResponse.json({ error: "Erro ao criar pedido" }, { status: 500 });
+    console.error("POST /orders error:", err);
+    res.status(500).json({ error: "Erro ao criar pedido" });
   }
-}
+});
 
-
-export async function GET() {
+/* ===================================================
+   GET /orders - LISTAR PEDIDOS
+=================================================== */
+router.get("/", async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
       orderBy: { createdAt: "desc" },
       include: {
         items: {
-          include: {
-            product: true,
-          },
+          include: { product: true },
         },
         customer: true,
       },
@@ -143,13 +146,11 @@ export async function GET() {
       paymentMethod: o.paymentMethod,
       createdAt: o.createdAt,
 
-      // Dados do cliente
       customer: o.customer?.name || "",
       phone: o.customer?.phone || "",
       address: o.customer?.address || "",
       shortAddress: o.customer?.address?.split(",")[0] || "",
 
-      // Itens
       items: o.items.map((i) => ({
         id: i.id,
         quantity: i.quantity,
@@ -159,11 +160,12 @@ export async function GET() {
       })),
     }));
 
-    return NextResponse.json(normalized);
+    res.json(normalized);
+
   } catch (err) {
-    console.error("GET /orders error", err);
-    return NextResponse.error();
+    console.error("GET /orders error:", err);
+    res.status(500).json({ error: "Erro ao listar pedidos" });
   }
-}
+});
 
-
+export default router;
