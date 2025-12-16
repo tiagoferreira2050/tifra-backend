@@ -34,13 +34,14 @@ export default async function login(req, res) {
       { expiresIn: "7d" }
     );
 
-    // ✅ COOKIE CORRETO PARA PRODUÇÃO
+    // ✅ COOKIE 100% COMPATÍVEL COM app.tifra.com.br
     res.cookie("tifra_token", token, {
       httpOnly: true,
-      secure: true,        // 🔥 OBRIGATÓRIO
-      sameSite: "none",    // 🔥 OBRIGATÓRIO
+      secure: true,          // 🔥 obrigatório em HTTPS
+      sameSite: "none",      // 🔥 obrigatório cross-domain
+      domain: ".tifra.com.br", // 🔥 ESSENCIAL (esse era o bug)
       path: "/",
-      maxAge: 1000 * 60 * 60 * 24 * 7,
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 dias
     });
 
     return res.json({
