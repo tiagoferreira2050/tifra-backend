@@ -1,10 +1,14 @@
 import { Router } from "express";
 import multer from "multer";
+import fetch from "node-fetch";
+import FormData from "form-data";
 
 const router = Router();
 
-// multer em memória (igual Vercel fazia)
-const upload = multer({ storage: multer.memoryStorage() });
+// multer em memória
+const upload = multer({
+  storage: multer.memoryStorage(),
+});
 
 /* ===================================================
    POST /upload
@@ -29,11 +33,10 @@ router.post("/", upload.single("file"), async (req, res) => {
     const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
 
     const formData = new FormData();
-    formData.append(
-      "file",
-      new Blob([file.buffer]),
-      file.originalname
-    );
+    formData.append("file", file.buffer, {
+      filename: file.originalname,
+      contentType: file.mimetype,
+    });
     formData.append("upload_preset", preset);
 
     const uploadResponse = await fetch(uploadUrl, {
@@ -51,11 +54,15 @@ router.post("/", upload.single("file"), async (req, res) => {
       });
     }
 
-    return res.json({ url: json.secure_url });
+    return res.json({
+      url: json.secure_url,
+    });
 
   } catch (err) {
     console.error("Erro no /upload:", err);
-    res.status(500).json({ error: "Erro interno no servidor" });
+    return res.status(500).json({
+      error: "Erro interno no servidor",
+    });
   }
 });
 
