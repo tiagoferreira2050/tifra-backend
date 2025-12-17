@@ -10,7 +10,7 @@ const router = Router();
 router.use(verifyAuth);
 
 /* ===================================================
-   GET - LISTAR (ordenado por `order`)
+   GET — LISTAR CATEGORIAS (PADRÃO COMPLEMENTS)
 =================================================== */
 router.get("/", async (req, res) => {
   try {
@@ -20,20 +20,19 @@ router.get("/", async (req, res) => {
       where: { storeId },
       orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       include: {
-  products: {
-    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-    include: {
-      productComplements: {
-        include: {
-          group: {
-            include: { items: true },
+        products: {
+          orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+          include: {
+            productComplements: {
+              include: {
+                group: {
+                  include: { items: true },
+                },
+              },
+            },
           },
         },
       },
-    },
-  },
-},
-
     });
 
     res.json(categories);
@@ -44,29 +43,31 @@ router.get("/", async (req, res) => {
 });
 
 /* ===================================================
-   POST - CRIAR
+   POST — CRIAR CATEGORIA
 =================================================== */
 router.post("/", async (req, res) => {
   try {
-    const { name, products = [] } = req.body;
     const storeId = req.user.storeId;
+    const { name, products = [] } = req.body;
 
     if (!name) {
-      return res.status(400).json({ error: "Nome obrigatório" });
+      return res.status(400).json({ error: "name é obrigatório" });
     }
 
-    const category = await prisma.category.create({
+    const created = await prisma.category.create({
       data: {
         name,
         storeId,
-        products: products.length
+        active: true,
+        products: Array.isArray(products) && products.length
           ? {
-              create: products.map((p) => ({
+              create: products.map((p, index) => ({
                 name: p.name ?? "",
                 price: p.price ?? 0,
                 description: p.description ?? null,
                 imageUrl: p.imageUrl ?? null,
                 active: p.active ?? true,
+                order: p.order ?? index,
                 storeId,
               })),
             }
@@ -75,7 +76,7 @@ router.post("/", async (req, res) => {
       include: { products: true },
     });
 
-    res.status(201).json(category);
+    res.status(201).json(created);
   } catch (err) {
     console.error("Erro POST /categories:", err);
     res.status(500).json({
@@ -86,90 +87,88 @@ router.post("/", async (req, res) => {
 });
 
 /* ===================================================
-   PUT - UPDATE ORDER
+   PATCH — ATUALIZAR CATEGORIA (PADRÃO COMPLEMENTS)
 =================================================== */
-router.put("/order", async (req, res) => {
+router.patch("/", async (req, res) => {
   try {
-    const { orders } = req.body;
     const storeId = req.user.storeId;
+    const { id, name, active, order } = req.body;
 
-    if (!Array.isArray(orders) || orders.length === 0) {
-      return res.status(400).json({ error: "Orders inválido ou vazio" });
+    if (!id) {
+      return res.status(400).json({ error: "ID obrigatório" });
     }
 
-    const uniqueOrders = Array.from(
-      new Map(orders.map((item) => [item.id, item])).values()
-    );
-
-    const updates = uniqueOrders.map((item) =>
-      prisma.category.updateMany({
-        where: { id: item.id, storeId },
-        data: { order: Number(item.order) || 0 },
-      })
-    );
-
-    await prisma.$transaction(updates);
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Erro PUT /categories/order:", err);
-    res.status(500).json({ error: "Erro ao salvar ordem" });
-  }
-});
-
-/* ===================================================
-   PATCH - UPDATE PARCIAL
-=================================================== */
-router.patch("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const storeId = req.user.storeId;
-    const { name, active, order } = req.body ?? {};
-
-    const updated = await prisma.category.updateMany({
+    await prisma.category.updateMany({
       where: { id, storeId },
       data: {
         ...(name !== undefined && { name }),
         ...(active !== undefined && { active }),
-        ...(order !== undefined && { order }),
+        ...(order !== undefined && { order: Number(order) }),
+      },
+    });
+
+    const updated = await prisma.category.findFirst({
+      where: { id, storeId },
+      include: {
+        products: {
+          orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+        },
       },
     });
 
     res.json(updated);
   } catch (err) {
-    console.error("Erro PATCH /categories/:id:", err);
-    res.status(500).json({ error: "Erro ao atualizar categoria" });
-  }
-});
-
-/* ===================================================
-   PUT - UPDATE NAME / ACTIVE
-=================================================== */
-router.put("/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const storeId = req.user.storeId;
-    const { name, active } = req.body;
-
-    const updated = await prisma.category.updateMany({
-      where: { id, storeId },
-      data: { name, active },
+    console.error("Erro PATCH /categories:", err);
+    res.status(500).json({
+      error: "Erro ao atualizar categoria",
+      details: err.message,
     });
-
-    res.json(updated);
-  } catch (err) {
-    console.error("Erro PUT /categories/:id:", err);
-    res.status(500).json({ error: "Erro ao atualizar categoria" });
   }
 });
 
 /* ===================================================
-   DELETE
+   POST — REORDENAR CATEGORIAS
 =================================================== */
-router.delete("/:id", async (req, res) => {
+router.post("/order", async (req, res) => {
   try {
-    const { id } = req.params;
     const storeId = req.user.storeId;
+    const { orders } = req.body;
+
+    if (!Array.isArray(orders)) {
+      return res.status(400).json({ error: "orders deve ser um array" });
+    }
+
+    await prisma.$transaction(
+      orders.map((item, index) =>
+        prisma.category.updateMany({
+          where: { id: item.id, storeId },
+          data: { order: Number(item.order ?? index) },
+        })
+      )
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Erro POST /categories/order:", err);
+    res.status(500).json({ error: "Erro ao salvar ordem" });
+  }
+});
+
+/* ===================================================
+   DELETE — DELETAR CATEGORIA + PRODUTOS
+=================================================== */
+router.delete("/", async (req, res) => {
+  try {
+    const storeId = req.user.storeId;
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: "ID obrigatório" });
+    }
+
+    await prisma.product.deleteMany({
+      where: { categoryId: id, storeId },
+    });
 
     await prisma.category.deleteMany({
       where: { id, storeId },
@@ -177,8 +176,11 @@ router.delete("/:id", async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error("Erro DELETE /categories/:id:", err);
-    res.status(500).json({ error: "Erro ao excluir categoria" });
+    console.error("Erro DELETE /categories:", err);
+    res.status(500).json({
+      error: "Erro ao excluir categoria",
+      details: err.message,
+    });
   }
 });
 
