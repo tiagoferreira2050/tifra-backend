@@ -18,23 +18,40 @@ dotenv.config();
 const prisma = new PrismaClient();
 const app = express();
 
-// 🔥 CORS CORRETO PARA COOKIE HTTPONLY
+/* ===================================================
+   🔥 CORS CORRETO (frontend separado + cookies)
+=================================================== */
 app.use(
   cors({
-    origin: "https://app.tifra.com.br",
+    origin: [
+      "https://app.tifra.com.br",
+      "http://localhost:3000",
+    ],
     credentials: true,
+    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// 🔥 ESSENCIAL PARA COOKIE HTTPONLY
-app.use(cookieParser());
+// 🔥 LIBERAR PREFLIGHT (ESSENCIAL)
+app.options("*", cors());
 
+/* ===================================================
+   MIDDLEWARES BÁSICOS
+=================================================== */
+app.use(cookieParser());
 app.use(express.json());
 
-// 🔥 health check
+/* ===================================================
+   HEALTH CHECK
+=================================================== */
 app.get("/", (req, res) => {
   res.json({ message: "Backend rodando com sucesso 🚀" });
 });
+
+/* ===================================================
+   ROTAS
+=================================================== */
 
 // 🔐 auth
 app.use("/auth", authRoutes);
@@ -60,9 +77,11 @@ app.use("/products", productsRoutes);
 // 📤 upload
 app.use("/upload", uploadRoutes);
 
+/* ===================================================
+   START SERVER (Railway)
+=================================================== */
 const port = process.env.PORT || 3001;
 
-// 🚨 essencial p Railway
 app.listen(port, "0.0.0.0", () => {
   console.log(`🔥 Servidor rodando na porta ${port}`);
 });
