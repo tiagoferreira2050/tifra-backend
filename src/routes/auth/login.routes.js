@@ -26,7 +26,12 @@ export default async function login(req, res) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    if (!user.storeId) {
+    // 🔥 BUSCA A STORE PELO userId (FORMA CORRETA)
+    const store = await prisma.store.findFirst({
+      where: { userId: user.id },
+    });
+
+    if (!store) {
       return res.status(400).json({
         error: "Usuário sem loja vinculada",
       });
@@ -37,7 +42,7 @@ export default async function login(req, res) {
         id: user.id,
         email: user.email,
         name: user.name,
-        storeId: user.storeId, // 🔥 ESSENCIAL
+        storeId: store.id, // ✅ agora é real
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
@@ -49,9 +54,10 @@ export default async function login(req, res) {
         id: user.id,
         name: user.name,
         email: user.email,
-        storeId: user.storeId,
+        storeId: store.id,
       },
     });
+
   } catch (error) {
     console.error("ERRO NO LOGIN:", error);
     return res.status(500).json({ error: "Server error" });
