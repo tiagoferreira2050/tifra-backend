@@ -30,14 +30,20 @@ router.post("/", async (req, res) => {
       ? [...new Set(complements)]
       : [];
 
+    // 🔥 PADRÃO IGUAL COMPLEMENTS
+    const normalizedImage =
+      typeof imageUrl === "string" && imageUrl.startsWith("http")
+        ? imageUrl
+        : null;
+
     const product = await prisma.product.create({
       data: {
         name,
-        description: description || null,
+        description: description ?? "",
         price,
         categoryId,
         storeId,
-        imageUrl: imageUrl || null,
+        imageUrl: normalizedImage,
 
         productComplements: {
           create: uniqueComplements.map((groupId, index) => ({
@@ -60,7 +66,6 @@ router.post("/", async (req, res) => {
     });
 
     res.status(201).json(product);
-
   } catch (error) {
     console.error("Erro ao criar produto:", error);
     res.status(500).json({
@@ -109,7 +114,6 @@ router.get("/", async (req, res) => {
     }));
 
     res.json(normalized);
-
   } catch (err) {
     console.error("GET /products error:", err);
     res.status(500).json({ error: "Erro ao listar produtos" });
@@ -142,7 +146,6 @@ router.get("/:id", async (req, res) => {
     }
 
     res.json(product);
-
   } catch (error) {
     console.error("Erro GET /products/:id:", error);
     res.status(500).json({ error: "Erro ao buscar produto" });
@@ -172,13 +175,20 @@ router.patch("/:id", async (req, res) => {
         ? priceInCents / 100
         : undefined;
 
-    const updateData = {};
-    if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
-    if (price !== undefined) updateData.price = price;
-    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
-    if (active !== undefined) updateData.active = active;
-    if (pdv !== undefined) updateData.pdv = pdv;
+    // 🔥 PADRÃO IGUAL COMPLEMENTS
+    const normalizedImage =
+      typeof imageUrl === "string" && imageUrl.startsWith("http")
+        ? imageUrl
+        : undefined;
+
+    const updateData = {
+      ...(name !== undefined && { name }),
+      ...(description !== undefined && { description }),
+      ...(price !== undefined && { price }),
+      ...(normalizedImage !== undefined && { imageUrl: normalizedImage }),
+      ...(active !== undefined && { active }),
+      ...(pdv !== undefined && { pdv }),
+    };
 
     if (categoryId !== undefined) {
       updateData.category = {
@@ -228,7 +238,6 @@ router.patch("/:id", async (req, res) => {
     });
 
     res.json(updated);
-
   } catch (error) {
     console.error("Erro PATCH /products/:id:", error);
     res.status(500).json({ error: "Erro ao atualizar produto" });
@@ -251,7 +260,6 @@ router.delete("/:id", async (req, res) => {
     });
 
     res.json({ success: true, deleted });
-
   } catch (error) {
     console.error("Erro DELETE /products/:id:", error);
     res.status(500).json({
@@ -284,7 +292,6 @@ router.post("/reorder", async (req, res) => {
     );
 
     res.json({ success: true });
-
   } catch (error) {
     console.error("Erro ao salvar ordem:", error);
     res.status(500).json({ error: "Erro ao salvar ordem" });
