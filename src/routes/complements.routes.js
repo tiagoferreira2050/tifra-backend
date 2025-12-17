@@ -81,16 +81,17 @@ router.post("/", async (req, res) => {
 router.patch("/", async (req, res) => {
   try {
     const {
-      id,
-      name,
-      description,
-      required,
-      min,
-      max,
-      active,
-      type,
-      options,
-    } = req.body;
+  id,
+  title,
+  description,
+  required,
+  minChoose,
+  maxChoose,
+  active,
+  type,
+  options,
+} = req.body;
+
 
     if (!id) {
       return res.status(400).json({ error: "ID obrigatório" });
@@ -100,14 +101,14 @@ router.patch("/", async (req, res) => {
     await prisma.complementGroup.update({
       where: { id },
       data: {
-        name: name ?? undefined,
-        description: description ?? undefined,
-        required: required ?? undefined,
-        min: min !== undefined ? Number(min) : undefined,
-        max: max !== undefined ? Number(max) : undefined,
-        active: active ?? undefined,
-        type: type ?? undefined,
-      },
+  name: title ?? undefined,
+  description: description ?? undefined,
+  required: required ?? undefined,
+  min: minChoose !== undefined ? Number(minChoose) : undefined,
+  max: maxChoose !== undefined ? Number(maxChoose) : undefined,
+  active: active ?? undefined,
+  type: type ?? undefined,
+},
     });
 
     // 2️⃣ Atualizar / criar itens
