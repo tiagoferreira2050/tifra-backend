@@ -20,10 +20,20 @@ router.get("/", async (req, res) => {
       where: { storeId },
       orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       include: {
-        products: {
-          orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+  products: {
+    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+    include: {
+      productComplements: {
+        include: {
+          group: {
+            include: { items: true },
+          },
         },
       },
+    },
+  },
+},
+
     });
 
     res.json(categories);
