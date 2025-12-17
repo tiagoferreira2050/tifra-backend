@@ -19,7 +19,7 @@ const prisma = new PrismaClient();
 const app = express();
 
 /* ===================================================
-   🔥 CORS CORRETO (frontend separado + cookies)
+   🔥 CORS CORRETO (Express moderno)
 =================================================== */
 app.use(
   cors({
@@ -33,11 +33,8 @@ app.use(
   })
 );
 
-// 🔥 LIBERAR PREFLIGHT (ESSENCIAL)
-app.options("*", cors());
-
 /* ===================================================
-   MIDDLEWARES BÁSICOS
+   MIDDLEWARES
 =================================================== */
 app.use(cookieParser());
 app.use(express.json());
@@ -68,7 +65,7 @@ app.use("/orders", ordersRoutes);
 // 🏪 stores
 app.use("/stores", storesRoutes);
 
-// 👤 user (painel)
+// 👤 user
 app.use("/user", userRoutes);
 
 // 🛒 products
