@@ -25,9 +25,14 @@ router.post("/", verifyAuth, async (req, res) => {
 
     const price = priceInCents / 100;
 
-    const uniqueComplements = Array.isArray(complements)
-      ? [...new Set(complements)]
-      : [];
+    const normalizedComplements = Array.isArray(complements)
+  ? complements
+      .map((c) => (typeof c === "string" ? c : c.groupId))
+      .filter(Boolean)
+  : [];
+
+const uniqueComplements = [...new Set(normalizedComplements)];
+
 
     const normalizedImage =
   typeof imageUrl === "string" && imageUrl.trim().length > 0
