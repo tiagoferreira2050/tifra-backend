@@ -156,7 +156,7 @@ router.patch("/", async (req, res) => {
       },
     });
   }
-  
+
     const updated = await prisma.complementGroup.findUnique({
       where: { id },
       include: { items: { orderBy: { createdAt: "asc" } } },
@@ -218,3 +218,5 @@ router.delete("/", async (req, res) => {
     });
   }
 });
+
+export default router;
