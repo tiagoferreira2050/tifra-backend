@@ -180,7 +180,7 @@ router.patch("/:id", verifyAuth, async (req, res) => {
         ? imageUrl
         : undefined;
 
-    const updateData: any = {
+const updateData = {
       ...(name !== undefined && { name }),
       ...(description !== undefined && { description }),
       ...(price !== undefined && { price }),
