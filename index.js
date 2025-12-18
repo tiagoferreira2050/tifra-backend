@@ -19,19 +19,22 @@ const prisma = new PrismaClient();
 const app = express();
 
 /* ===================================================
-   🔥 CORS CORRETO (Express moderno)
+   🔥 CORS GLOBAL (CORRETO + PRODUÇÃO)
 =================================================== */
-app.use(
-  cors({
-    origin: [
-      "https://app.tifra.com.br",
-      "http://localhost:3000",
-    ],
-    credentials: true,
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+const corsOptions = {
+  origin: [
+    "https://app.tifra.com.br",
+    "http://localhost:3000",
+  ],
+  credentials: true,
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
+
+/* 🔥 PRE-FLIGHT GLOBAL (ESSENCIAL) */
+app.options("*", cors(corsOptions));
 
 /* ===================================================
    MIDDLEWARES
