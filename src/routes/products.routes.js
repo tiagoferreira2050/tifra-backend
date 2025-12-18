@@ -148,16 +148,17 @@ router.patch("/:id", verifyAuth, async (req, res) => {
     // 🔥 PATCH SIMPLES (TOGGLE ACTIVE)
     // ===============================
     if (
-      Object.keys(body).length === 1 &&
-      typeof body.active === "boolean"
-    ) {
-      const updated = await prisma.product.update({
-        where: { id },
-        data: { active: body.active },
-      });
+  req.body &&
+  Object.keys(req.body).length === 1 &&
+  typeof req.body.active === "boolean"
+) {
+  const updated = await prisma.product.update({
+    where: { id },
+    data: { active: req.body.active },
+  });
 
-      return res.json(updated);
-    }
+  return res.json(updated);
+}
 
     // ===============================
     // PATCH COMPLETO
