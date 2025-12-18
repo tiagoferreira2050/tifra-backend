@@ -42,6 +42,7 @@ router.post("/", verifyAuth, async (req, res) => {
         categoryId,
         storeId,
         imageUrl: normalizedImage,
+        active: true,
         productComplements: {
           create: uniqueComplements.map((groupId, index) => ({
             groupId,
@@ -54,9 +55,7 @@ router.post("/", verifyAuth, async (req, res) => {
         productComplements: {
           orderBy: { order: "asc" },
           include: {
-            group: {
-              include: { items: true },
-            },
+            group: { include: { items: true } },
           },
         },
       },
@@ -141,7 +140,7 @@ router.get("/:id", verifyAuth, async (req, res) => {
 });
 
 /* ===================================================
-   PATCH /products/:id
+   PATCH /products/:id — ATUALIZAR PRODUTO
 =================================================== */
 router.patch("/:id", verifyAuth, async (req, res) => {
   try {
@@ -225,9 +224,9 @@ router.patch("/:id", verifyAuth, async (req, res) => {
 });
 
 /* ===================================================
-   DELETE - PRODUTO (SOFT DELETE - CORRETO)
+   DELETE /products — EXCLUIR PRODUTO (COM REGRA)
 =================================================== */
-router.delete("/", async (req, res) => {
+router.delete("/",  async (req, res) => {
   try {
     const { id } = req.body;
 
@@ -235,20 +234,26 @@ router.delete("/", async (req, res) => {
       return res.status(400).json({ error: "ID do produto obrigatório" });
     }
 
-    /**
-     * REGRA:
-     * - NÃO exclui pedidos
-     * - NÃO exclui clientes
-     * - NÃO exclui complementos
-     * - NÃO exclui itens
-     * - Produto apenas deixa de existir visualmente
-     */
+    // 1️⃣ Verificar se produto tem pedidos
+    const hasOrder = await prisma.orderItem.findFirst({
+      where: { productId: id },
+    });
 
-    await prisma.product.update({
+    if (hasOrder) {
+      return res.status(409).json({
+        error:
+          "Não foi possível excluir o produto. Existem pedidos vinculados a este produto.",
+      });
+    }
+
+    // 2️⃣ Remover vínculos com complementos
+    await prisma.productComplement.deleteMany({
+      where: { productId: id },
+    });
+
+    // 3️⃣ Excluir produto
+    await prisma.product.delete({
       where: { id },
-      data: {
-        active: false,
-      },
     });
 
     res.json({ success: true });
@@ -260,7 +265,6 @@ router.delete("/", async (req, res) => {
     });
   }
 });
-
 
 /* ===================================================
    POST /products/reorder

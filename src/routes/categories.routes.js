@@ -10,7 +10,7 @@ const router = Router();
 router.use(verifyAuth);
 
 /* ===================================================
-   GET — LISTAR CATEGORIAS (PADRÃO COMPLEMENTS)
+   GET — LISTAR CATEGORIAS
 =================================================== */
 router.get("/", async (req, res) => {
   try {
@@ -87,7 +87,7 @@ router.post("/", async (req, res) => {
 });
 
 /* ===================================================
-   PATCH — ATUALIZAR CATEGORIA (PADRÃO COMPLEMENTS)
+   PATCH — ATUALIZAR CATEGORIA
 =================================================== */
 router.patch("/", async (req, res) => {
   try {
@@ -155,7 +155,7 @@ router.post("/order", async (req, res) => {
 });
 
 /* ===================================================
-   DELETE — DELETAR CATEGORIA + PRODUTOS
+   DELETE — EXCLUIR CATEGORIA (COM REGRAS)
 =================================================== */
 router.delete("/", async (req, res) => {
   try {
@@ -166,10 +166,34 @@ router.delete("/", async (req, res) => {
       return res.status(400).json({ error: "ID obrigatório" });
     }
 
-    await prisma.product.deleteMany({
+    // 1️⃣ Buscar produtos da categoria
+    const products = await prisma.product.findMany({
       where: { categoryId: id, storeId },
+      select: { id: true },
     });
 
+    // 2️⃣ Verificar se algum produto tem pedido
+    if (products.length > 0) {
+      const hasOrder = await prisma.orderItem.findFirst({
+        where: {
+          productId: { in: products.map((p) => p.id) },
+        },
+      });
+
+      if (hasOrder) {
+        return res.status(409).json({
+          error:
+            "Não foi possível excluir a categoria. Existem pedidos vinculados a produtos desta categoria.",
+        });
+      }
+
+      // 3️⃣ Excluir produtos (SEM mexer em complementos)
+      await prisma.product.deleteMany({
+        where: { categoryId: id, storeId },
+      });
+    }
+
+    // 4️⃣ Excluir categoria
     await prisma.category.deleteMany({
       where: { id, storeId },
     });
