@@ -33,9 +33,6 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-/* 🔥 PRE-FLIGHT GLOBAL (NUNCA USAR "*") */
-app.options("/*", cors(corsOptions));
-
 /* ===================================================
    MIDDLEWARES
 =================================================== */
