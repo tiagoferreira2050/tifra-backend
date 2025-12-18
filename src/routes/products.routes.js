@@ -245,29 +245,37 @@ router.patch("/:id", async (req, res) => {
 });
 
 /* ===================================================
-   DELETE /products/:id — EXCLUIR PRODUTO
+   DELETE - EXCLUIR PRODUTO
 =================================================== */
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    const storeId = req.user.storeId;
 
+    if (!id) {
+      return res.status(400).json({ error: "ID obrigatório" });
+    }
+
+    // 🔥 remove vínculos com complementos
     await prisma.productComplement.deleteMany({
       where: { productId: id },
     });
 
-    const deleted = await prisma.product.delete({
-      where: { id },
+    // 🔥 remove o produto
+    await prisma.product.deleteMany({
+      where: { id, storeId },
     });
 
-    res.json({ success: true, deleted });
-  } catch (error) {
-    console.error("Erro DELETE /products/:id:", error);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Erro DELETE /products/:id:", err);
     res.status(500).json({
       error: "Erro ao excluir produto",
-      details: error.message,
+      details: err.message,
     });
   }
 });
+
 
 /* ===================================================
    POST /products/reorder — REORDENAR
