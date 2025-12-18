@@ -217,7 +217,7 @@ router.delete("/:id", async (req, res) => {
 
     // 5️⃣ Apagar categoria
     await prisma.category.delete({
-      where: { id },
+  where: { id, storeId },
     });
 
     res.json({ success: true });
