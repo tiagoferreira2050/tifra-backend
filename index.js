@@ -7,6 +7,7 @@ import { PrismaClient } from "@prisma/client";
 import authRoutes from "./src/routes/auth/index.js";
 import categoriesRoutes from "./src/routes/categories.routes.js";
 import complementsRoutes from "./src/routes/complements.routes.js";
+import complementItemsRoutes from "./src/routes/complement-items.js";
 import ordersRoutes from "./src/routes/orders.routes.js";
 import storesRoutes from "./src/routes/stores.routes.js";
 import userRoutes from "./src/routes/user.routes.js";
@@ -20,7 +21,6 @@ const app = express();
 
 /* ===================================================
    🔥 CORS GLOBAL — NODE 22 SAFE
-   (NÃO usar app.options)
 =================================================== */
 const corsOptions = {
   origin: [
@@ -57,8 +57,11 @@ app.use("/auth", authRoutes);
 // 📂 categories
 app.use("/categories", categoriesRoutes);
 
-// 🧩 complements
+// 🧩 complements (GRUPOS)
 app.use("/complements", complementsRoutes);
+
+// 🧩 complement items (ITENS)
+app.use("/complement-items", complementItemsRoutes);
 
 // 🧾 orders
 app.use("/orders", ordersRoutes);

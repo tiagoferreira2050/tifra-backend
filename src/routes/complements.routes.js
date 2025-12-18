@@ -148,13 +148,15 @@ router.patch("/", async (req, res) => {
     }
 
     // 3️⃣ Remover itens excluídos
-    await prisma.complement.deleteMany({
-      where: {
-        groupId: id,
-        id: { notIn: savedItemIds },
+    if (Array.isArray(options)) {
+  await prisma.complement.deleteMany({
+    where: {
+      groupId: id,
+      id: { notIn: savedItemIds },
       },
     });
-
+  }
+  
     const updated = await prisma.complementGroup.findUnique({
       where: { id },
       include: { items: { orderBy: { createdAt: "asc" } } },
@@ -171,7 +173,7 @@ router.patch("/", async (req, res) => {
 });
 
 /* ===================================================
-   DELETE - GRUPO + ITENS
+   DELETE - GRUPO + ITENS + VÍNCULOS
 =================================================== */
 router.delete("/", async (req, res) => {
   try {
@@ -181,8 +183,31 @@ router.delete("/", async (req, res) => {
       return res.status(400).json({ error: "ID obrigatório" });
     }
 
-    await prisma.complement.deleteMany({ where: { groupId: id } });
-    await prisma.complementGroup.delete({ where: { id } });
+    /**
+     * ORDEM OBRIGATÓRIA:
+     * 1. Remove vínculo com produtos
+     * 2. Remove itens
+     * 3. Remove grupo
+     * 
+     * PRODUTOS NUNCA SÃO EXCLUÍDOS
+     */
+    await prisma.$transaction([
+      prisma.productComplement.deleteMany({
+        where: {
+          complementGroupId: id,
+        },
+      }),
+
+      prisma.complement.deleteMany({
+        where: {
+          groupId: id,
+        },
+      }),
+
+      prisma.complementGroup.delete({
+        where: { id },
+      }),
+    ]);
 
     res.json({ success: true });
   } catch (err) {
@@ -193,7 +218,3 @@ router.delete("/", async (req, res) => {
     });
   }
 });
-
-export default router;
-
-
