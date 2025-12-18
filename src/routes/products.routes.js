@@ -139,14 +139,29 @@ router.get("/:id", verifyAuth, async (req, res) => {
   }
 });
 
-/* ===================================================
-   PATCH /products/:id — ATUALIZAR PRODUTO
-=================================================== */
 router.patch("/:id", verifyAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const body = req.body;
 
+    // ===============================
+    // 🔥 PATCH SIMPLES (TOGGLE ACTIVE)
+    // ===============================
+    if (
+      Object.keys(body).length === 1 &&
+      typeof body.active === "boolean"
+    ) {
+      const updated = await prisma.product.update({
+        where: { id },
+        data: { active: body.active },
+      });
+
+      return res.json(updated);
+    }
+
+    // ===============================
+    // PATCH COMPLETO
+    // ===============================
     const {
       name,
       description,
@@ -161,13 +176,11 @@ router.patch("/:id", verifyAuth, async (req, res) => {
       priceInCents !== undefined ? priceInCents / 100 : undefined;
 
     const normalizedImage =
-  typeof imageUrl === "string" && imageUrl.length > 0
-    ? imageUrl
-    : undefined;
+      typeof imageUrl === "string" && imageUrl.length > 0
+        ? imageUrl
+        : undefined;
 
-
-
-    const updateData = {
+    const updateData: any = {
       ...(name !== undefined && { name }),
       ...(description !== undefined && { description }),
       ...(price !== undefined && { price }),
@@ -185,10 +198,11 @@ router.patch("/:id", verifyAuth, async (req, res) => {
       data: updateData,
     });
 
-    if ("complements" in body) {
-      const uniqueComplements = Array.isArray(body.complements)
-        ? [...new Set(body.complements)]
-        : [];
+    // ===============================
+    // COMPLEMENTS (SE EXISTIR)
+    // ===============================
+    if (Array.isArray(body.complements)) {
+      const uniqueComplements = [...new Set(body.complements)];
 
       await prisma.productComplement.deleteMany({
         where: { productId: id },
