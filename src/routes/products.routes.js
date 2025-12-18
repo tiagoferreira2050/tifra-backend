@@ -2,10 +2,12 @@ import { Router } from "express";
 import { prisma } from "../prisma/client.js";
 import { verifyAuth } from "./auth/_middlewares/auth.middleware.js";
 
-router.use(verifyAuth);
-
-
 const router = Router();
+
+/* ===================================================
+   🔐 PROTEGE TODAS AS ROTAS
+=================================================== */
+router.use(verifyAuth);
 
 /* ===================================================
    POST /products — CRIAR PRODUTO
@@ -34,7 +36,6 @@ router.post("/", async (req, res) => {
       ? [...new Set(complements)]
       : [];
 
-    // 🔥 PADRÃO IGUAL COMPLEMENTS
     const normalizedImage =
       typeof imageUrl === "string" && imageUrl.startsWith("http")
         ? imageUrl
@@ -179,7 +180,6 @@ router.patch("/:id", async (req, res) => {
         ? priceInCents / 100
         : undefined;
 
-    // 🔥 PADRÃO IGUAL COMPLEMENTS
     const normalizedImage =
       typeof imageUrl === "string" && imageUrl.startsWith("http")
         ? imageUrl
@@ -205,7 +205,6 @@ router.patch("/:id", async (req, res) => {
       data: updateData,
     });
 
-    // complements (somente se enviado)
     if (Object.prototype.hasOwnProperty.call(body, "complements")) {
       const uniqueComplements = Array.isArray(body.complements)
         ? [...new Set(body.complements)]
@@ -249,23 +248,17 @@ router.patch("/:id", async (req, res) => {
 });
 
 /* ===================================================
-   DELETE - EXCLUIR PRODUTO
+   DELETE /products/:id — EXCLUIR PRODUTO
 =================================================== */
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const storeId = req.user.storeId;
 
-    if (!id) {
-      return res.status(400).json({ error: "ID obrigatório" });
-    }
-
-    // 🔥 remove vínculos com complementos
     await prisma.productComplement.deleteMany({
       where: { productId: id },
     });
 
-    // 🔥 remove o produto
     await prisma.product.deleteMany({
       where: { id, storeId },
     });
@@ -273,13 +266,9 @@ router.delete("/:id", async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("Erro DELETE /products/:id:", err);
-    res.status(500).json({
-      error: "Erro ao excluir produto",
-      details: err.message,
-    });
+    res.status(500).json({ error: "Erro ao excluir produto" });
   }
 });
-
 
 /* ===================================================
    POST /products/reorder — REORDENAR
