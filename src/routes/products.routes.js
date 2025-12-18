@@ -250,25 +250,57 @@ router.patch("/:id", async (req, res) => {
 /* ===================================================
    DELETE /products/:id — EXCLUIR PRODUTO
 =================================================== */
+/* ===================================================
+   DELETE /products/:id — EXCLUIR PRODUTO
+=================================================== */
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const storeId = req.user.storeId;
 
+    if (!id) {
+      return res.status(400).json({ error: "ID obrigatório" });
+    }
+
+    // 🔐 storeId vindo do token
+    const storeId = req.user?.storeId;
+
+    if (!storeId) {
+      return res.status(401).json({ error: "Não autorizado" });
+    }
+
+    // 🔎 garante que o produto é da loja
+    const product = await prisma.product.findFirst({
+      where: {
+        id,
+        storeId,
+      },
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        error: "Produto não encontrado ou não pertence à loja",
+      });
+    }
+
+    // 🔥 remove vínculos com complementos
     await prisma.productComplement.deleteMany({
       where: { productId: id },
     });
 
-    await prisma.product.deleteMany({
-      where: { id, storeId },
+    // 🔥 remove produto
+    await prisma.product.delete({
+      where: { id },
     });
 
-    res.json({ success: true });
+    return res.json({ success: true });
   } catch (err) {
     console.error("Erro DELETE /products/:id:", err);
-    res.status(500).json({ error: "Erro ao excluir produto" });
+    return res.status(500).json({
+      error: "Erro ao excluir produto",
+    });
   }
 });
+
 
 /* ===================================================
    POST /products/reorder — REORDENAR
