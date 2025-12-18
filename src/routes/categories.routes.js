@@ -54,37 +54,84 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "name é obrigatório" });
     }
 
-    const created = await prisma.category.create({
-      data: {
-        name,
-        storeId,
-        active: true,
-        products: Array.isArray(products) && products.length
-          ? {
-              create: products.map((p, index) => ({
-                name: p.name ?? "",
-                price: p.price ?? 0,
-                description: p.description ?? null,
-                imageUrl: p.imageUrl ?? null,
-                active: p.active ?? true,
-                order: p.order ?? index,
-                storeId,
-              })),
-            }
-          : undefined,
-      },
-      include: { products: true },
+    const result = await prisma.$transaction(async (tx) => {
+      // 1️⃣ cria categoria
+      const category = await tx.category.create({
+        data: {
+          name,
+          storeId,
+          active: true,
+        },
+      });
+
+      // 2️⃣ duplica produtos (se existirem)
+      for (const p of products) {
+        // produto original completo
+        const original = await tx.product.findUnique({
+          where: { id: p.id },
+          include: {
+            productComplements: true,
+          },
+        });
+
+        if (!original) continue;
+
+        // cria novo produto
+        const newProduct = await tx.product.create({
+          data: {
+            name: original.name,
+            price: original.price,
+            description: original.description,
+            imageUrl: original.imageUrl,
+            active: original.active,
+            order: original.order,
+            storeId,
+            categoryId: category.id,
+          },
+        });
+
+        // duplica vínculos de complementos
+        if (original.productComplements.length > 0) {
+          await tx.productComplement.createMany({
+            data: original.productComplements.map((pc) => ({
+              productId: newProduct.id,
+              groupId: pc.groupId,
+              order: pc.order,
+              active: pc.active,
+            })),
+          });
+        }
+      }
+
+      return category;
     });
 
-    res.status(201).json(created);
+    // 3️⃣ retorna categoria completa
+    const fullCategory = await prisma.category.findUnique({
+      where: { id: result.id },
+      include: {
+        products: {
+          include: {
+            productComplements: {
+              include: {
+                group: { include: { items: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    res.status(201).json(fullCategory);
   } catch (err) {
-    console.error("Erro POST /categories:", err);
+    console.error("Erro POST /categories (duplicate):", err);
     res.status(500).json({
-      error: "Erro ao criar categoria",
+      error: "Erro ao duplicar categoria",
       details: err.message,
     });
   }
 });
+
 
 /* ===================================================
    PATCH — ATUALIZAR CATEGORIA
