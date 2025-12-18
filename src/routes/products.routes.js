@@ -30,9 +30,10 @@ router.post("/", verifyAuth, async (req, res) => {
       : [];
 
     const normalizedImage =
-      typeof imageUrl === "string" && imageUrl.startsWith("http")
-        ? imageUrl
-        : null;
+  typeof imageUrl === "string" && imageUrl.trim().length > 0
+    ? imageUrl
+    : null;
+
 
     const product = await prisma.product.create({
       data: {
@@ -41,7 +42,7 @@ router.post("/", verifyAuth, async (req, res) => {
         price,
         categoryId,
         storeId,
-        imageUrl: normalizedImage,
+    imageUrl: normalizedImage, // 👈 agora salva corretamente
         active: true,
         productComplements: {
           create: uniqueComplements.map((groupId, index) => ({
