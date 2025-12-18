@@ -147,23 +147,28 @@ router.patch("/", async (req, res) => {
       }
     }
 
-    // 3️⃣ Remover itens excluídos (PROTEGIDO)
-if (Array.isArray(savedItemIds) && savedItemIds.length > 0) {
-  await prisma.complement.deleteMany({
-    where: {
-      groupId: id,
-      id: { notIn: savedItemIds },
-    },
-  });
-} else {
-  // se não veio nenhum item, remove APENAS os itens desse grupo
-  await prisma.complement.deleteMany({
-    where: {
-      groupId: id,
-    },
-  });
-}
+    // 3️⃣ Remover itens excluídos
+    await prisma.complement.deleteMany({
+      where: {
+        groupId: id,
+        id: { notIn: savedItemIds },
+      },
+    });
 
+    const updated = await prisma.complementGroup.findUnique({
+      where: { id },
+      include: { items: { orderBy: { createdAt: "asc" } } },
+    });
+
+    res.json(updated);
+  } catch (err) {
+    console.error("Erro PATCH /complements:", err);
+    res.status(500).json({
+      error: "Erro ao atualizar complemento",
+      details: err.message,
+    });
+  }
+});
 
 /* ===================================================
    DELETE - GRUPO + ITENS
@@ -190,3 +195,5 @@ router.delete("/", async (req, res) => {
 });
 
 export default router;
+
+
