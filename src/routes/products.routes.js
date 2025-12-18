@@ -204,23 +204,29 @@ const updateData = {
     // COMPLEMENTS (SE EXISTIR)
     // ===============================
     if (Array.isArray(body.complements)) {
-      const uniqueComplements = [...new Set(body.complements)];
+  // 🔥 NORMALIZA (aceita string ou objeto)
+  const normalizedComplements = body.complements
+    .map((c) => (typeof c === "string" ? c : c.groupId))
+    .filter(Boolean);
 
-      await prisma.productComplement.deleteMany({
-        where: { productId: id },
-      });
+  const uniqueComplements = [...new Set(normalizedComplements)];
 
-      if (uniqueComplements.length > 0) {
-        await prisma.productComplement.createMany({
-          data: uniqueComplements.map((groupId, order) => ({
-            productId: id,
-            groupId,
-            order,
-            active: true,
-          })),
-        });
-      }
-    }
+  await prisma.productComplement.deleteMany({
+    where: { productId: id },
+  });
+
+  if (uniqueComplements.length > 0) {
+    await prisma.productComplement.createMany({
+      data: uniqueComplements.map((groupId, order) => ({
+        productId: id,
+        groupId,
+        order,
+        active: true,
+      })),
+    });
+  }
+}
+
 
     const updated = await prisma.product.findUnique({
       where: { id },
