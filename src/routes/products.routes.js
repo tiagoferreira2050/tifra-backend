@@ -161,9 +161,11 @@ router.patch("/:id", verifyAuth, async (req, res) => {
       priceInCents !== undefined ? priceInCents / 100 : undefined;
 
     const normalizedImage =
-      typeof imageUrl === "string" && imageUrl.startsWith("http")
-        ? imageUrl
-        : undefined;
+  typeof imageUrl === "string" && imageUrl.length > 0
+    ? imageUrl
+    : undefined;
+
+
 
     const updateData = {
       ...(name !== undefined && { name }),
