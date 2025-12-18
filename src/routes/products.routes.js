@@ -5,14 +5,9 @@ import { verifyAuth } from "./auth/_middlewares/auth.middleware.js";
 const router = Router();
 
 /* ===================================================
-   🔐 PROTEGE TODAS AS ROTAS
-=================================================== */
-router.use(verifyAuth);
-
-/* ===================================================
    POST /products — CRIAR PRODUTO
 =================================================== */
-router.post("/", async (req, res) => {
+router.post("/", verifyAuth, async (req, res) => {
   try {
     const {
       name,
@@ -25,9 +20,7 @@ router.post("/", async (req, res) => {
     } = req.body;
 
     if (!name || priceInCents === undefined || !categoryId || !storeId) {
-      return res.status(400).json({
-        error: "Dados obrigatórios faltando",
-      });
+      return res.status(400).json({ error: "Dados obrigatórios faltando" });
     }
 
     const price = priceInCents / 100;
@@ -49,7 +42,6 @@ router.post("/", async (req, res) => {
         categoryId,
         storeId,
         imageUrl: normalizedImage,
-
         productComplements: {
           create: uniqueComplements.map((groupId, index) => ({
             groupId,
@@ -73,19 +65,14 @@ router.post("/", async (req, res) => {
     res.status(201).json(product);
   } catch (error) {
     console.error("Erro ao criar produto:", error);
-    res.status(500).json({
-      error:
-        error?.meta?.cause ||
-        error.message ||
-        "Erro interno ao criar produto",
-    });
+    res.status(500).json({ error: "Erro ao criar produto" });
   }
 });
 
 /* ===================================================
-   GET /products — LISTAR PRODUTOS ATIVOS
+   GET /products — LISTAR PRODUTOS
 =================================================== */
-router.get("/", async (req, res) => {
+router.get("/", verifyAuth, async (req, res) => {
   try {
     const products = await prisma.product.findMany({
       where: { active: true },
@@ -94,9 +81,7 @@ router.get("/", async (req, res) => {
         category: true,
         productComplements: {
           include: {
-            group: {
-              include: { items: true },
-            },
+            group: { include: { items: true } },
           },
         },
       },
@@ -126,9 +111,9 @@ router.get("/", async (req, res) => {
 });
 
 /* ===================================================
-   GET /products/:id — PRODUTO COMPLETO
+   GET /products/:id
 =================================================== */
-router.get("/:id", async (req, res) => {
+router.get("/:id", verifyAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -138,9 +123,7 @@ router.get("/:id", async (req, res) => {
         productComplements: {
           orderBy: { order: "asc" },
           include: {
-            group: {
-              include: { items: true },
-            },
+            group: { include: { items: true } },
           },
         },
       },
@@ -158,9 +141,9 @@ router.get("/:id", async (req, res) => {
 });
 
 /* ===================================================
-   PATCH /products/:id — ATUALIZAR PRODUTO
+   PATCH /products/:id
 =================================================== */
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", verifyAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const body = req.body;
@@ -176,9 +159,7 @@ router.patch("/:id", async (req, res) => {
     } = body;
 
     const price =
-      priceInCents !== undefined && priceInCents !== null
-        ? priceInCents / 100
-        : undefined;
+      priceInCents !== undefined ? priceInCents / 100 : undefined;
 
     const normalizedImage =
       typeof imageUrl === "string" && imageUrl.startsWith("http")
@@ -195,9 +176,7 @@ router.patch("/:id", async (req, res) => {
     };
 
     if (categoryId !== undefined) {
-      updateData.category = {
-        connect: { id: categoryId },
-      };
+      updateData.category = { connect: { id: categoryId } };
     }
 
     await prisma.product.update({
@@ -205,7 +184,7 @@ router.patch("/:id", async (req, res) => {
       data: updateData,
     });
 
-    if (Object.prototype.hasOwnProperty.call(body, "complements")) {
+    if ("complements" in body) {
       const uniqueComplements = Array.isArray(body.complements)
         ? [...new Set(body.complements)]
         : [];
@@ -232,9 +211,7 @@ router.patch("/:id", async (req, res) => {
         productComplements: {
           orderBy: { order: "asc" },
           include: {
-            group: {
-              include: { items: true },
-            },
+            group: { include: { items: true } },
           },
         },
       },
@@ -248,7 +225,7 @@ router.patch("/:id", async (req, res) => {
 });
 
 /* ===================================================
-   DELETE /products/:id — EXCLUIR PRODUTO
+   DELETE /products/:id — PADRÃO COMPLEMENTS
 =================================================== */
 router.delete("/:id", async (req, res) => {
   try {
@@ -258,12 +235,10 @@ router.delete("/:id", async (req, res) => {
       return res.status(400).json({ error: "ID obrigatório" });
     }
 
-    // 🔥 remove vínculos com complementos
     await prisma.productComplement.deleteMany({
       where: { productId: id },
     });
 
-    // 🔥 remove o produto (SEM storeId)
     await prisma.product.delete({
       where: { id },
     });
@@ -278,18 +253,15 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-
 /* ===================================================
-   POST /products/reorder — REORDENAR
+   POST /products/reorder
 =================================================== */
-router.post("/reorder", async (req, res) => {
+router.post("/reorder", verifyAuth, async (req, res) => {
   try {
     const { productIds } = req.body;
 
     if (!Array.isArray(productIds)) {
-      return res.status(400).json({
-        error: "productIds deve ser um array",
-      });
+      return res.status(400).json({ error: "productIds deve ser um array" });
     }
 
     await prisma.$transaction(
@@ -309,5 +281,3 @@ router.post("/reorder", async (req, res) => {
 });
 
 export default router;
-
-
