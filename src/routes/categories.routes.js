@@ -157,10 +157,21 @@ router.post("/order", async (req, res) => {
 /* ===================================================
    DELETE — EXCLUIR CATEGORIA (COM REGRAS)
 =================================================== */
-router.delete("/", async (req, res) => {
+/* ===================================================
+   DELETE — DELETAR CATEGORIA
+   REGRA:
+   - Se NÃO tiver produtos → apaga categoria
+   - Se tiver produtos:
+       - verifica pedidos
+       - se tiver pedido → BLOQUEIA
+       - se NÃO tiver pedido → apaga produtos + categoria
+   - NÃO apaga complementos
+   - NÃO apaga clientes
+=================================================== */
+router.delete("/:id", async (req, res) => {
   try {
     const storeId = req.user.storeId;
-    const { id } = req.body;
+    const { id } = req.params;
 
     if (!id) {
       return res.status(400).json({ error: "ID obrigatório" });
@@ -172,11 +183,13 @@ router.delete("/", async (req, res) => {
       select: { id: true },
     });
 
-    // 2️⃣ Verificar se algum produto tem pedido
-    if (products.length > 0) {
+    const productIds = products.map(p => p.id);
+
+    // 2️⃣ Se tiver produtos, verificar pedidos
+    if (productIds.length > 0) {
       const hasOrder = await prisma.orderItem.findFirst({
         where: {
-          productId: { in: products.map((p) => p.id) },
+          productId: { in: productIds },
         },
       });
 
@@ -187,25 +200,35 @@ router.delete("/", async (req, res) => {
         });
       }
 
-      // 3️⃣ Excluir produtos (SEM mexer em complementos)
+      // 3️⃣ Apagar vínculos de complementos dos produtos
+      await prisma.productComplement.deleteMany({
+        where: {
+          productId: { in: productIds },
+        },
+      });
+
+      // 4️⃣ Apagar produtos
       await prisma.product.deleteMany({
-        where: { categoryId: id, storeId },
+        where: {
+          id: { in: productIds },
+        },
       });
     }
 
-    // 4️⃣ Excluir categoria
-    await prisma.category.deleteMany({
-      where: { id, storeId },
+    // 5️⃣ Apagar categoria
+    await prisma.category.delete({
+      where: { id },
     });
 
     res.json({ success: true });
   } catch (err) {
-    console.error("Erro DELETE /categories:", err);
+    console.error("Erro DELETE /categories/:id:", err);
     res.status(500).json({
       error: "Erro ao excluir categoria",
       details: err.message,
     });
   }
 });
+
 
 export default router;

@@ -226,15 +226,26 @@ router.patch("/:id", verifyAuth, async (req, res) => {
 /* ===================================================
    DELETE /products — EXCLUIR PRODUTO (COM REGRA)
 =================================================== */
-router.delete("/",  async (req, res) => {
+/* ===================================================
+   DELETE — PRODUTO (PADRÃO COMPLEMENTS)
+   REGRA:
+   - NÃO exclui clientes
+   - NÃO exclui pedidos
+   - NÃO exclui complementos
+   - NÃO exclui itens
+   - Remove vínculos produto ↔ complementos
+   - Se houver pedido → BLOQUEIA
+=================================================== */
+router.delete("/:id", verifyAuth, async (req, res) => {
   try {
-    const { id } = req.body;
+    const storeId = req.user.storeId;
+    const { id } = req.params;
 
     if (!id) {
       return res.status(400).json({ error: "ID do produto obrigatório" });
     }
 
-    // 1️⃣ Verificar se produto tem pedidos
+    // 1️⃣ Verificar se existe pedido com esse produto
     const hasOrder = await prisma.orderItem.findFirst({
       where: { productId: id },
     });
@@ -242,7 +253,7 @@ router.delete("/",  async (req, res) => {
     if (hasOrder) {
       return res.status(409).json({
         error:
-          "Não foi possível excluir o produto. Existem pedidos vinculados a este produto.",
+          "Não foi possível excluir o produto. Existe pedido vinculado a este produto.",
       });
     }
 
@@ -251,20 +262,24 @@ router.delete("/",  async (req, res) => {
       where: { productId: id },
     });
 
-    // 3️⃣ Excluir produto
+    // 3️⃣ Remover produto
     await prisma.product.delete({
-      where: { id },
+      where: {
+        id,
+        storeId,
+      },
     });
 
     res.json({ success: true });
   } catch (err) {
-    console.error("Erro DELETE /products:", err);
+    console.error("Erro DELETE /products/:id:", err);
     res.status(500).json({
       error: "Erro ao excluir produto",
       details: err.message,
     });
   }
 });
+
 
 /* ===================================================
    POST /products/reorder
