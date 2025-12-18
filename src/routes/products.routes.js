@@ -250,9 +250,6 @@ router.patch("/:id", async (req, res) => {
 /* ===================================================
    DELETE /products/:id — EXCLUIR PRODUTO
 =================================================== */
-/* ===================================================
-   DELETE /products/:id — EXCLUIR PRODUTO
-=================================================== */
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -261,42 +258,22 @@ router.delete("/:id", async (req, res) => {
       return res.status(400).json({ error: "ID obrigatório" });
     }
 
-    // 🔐 storeId vindo do token
-    const storeId = req.user?.storeId;
-
-    if (!storeId) {
-      return res.status(401).json({ error: "Não autorizado" });
-    }
-
-    // 🔎 garante que o produto é da loja
-    const product = await prisma.product.findFirst({
-      where: {
-        id,
-        storeId,
-      },
-    });
-
-    if (!product) {
-      return res.status(404).json({
-        error: "Produto não encontrado ou não pertence à loja",
-      });
-    }
-
     // 🔥 remove vínculos com complementos
     await prisma.productComplement.deleteMany({
       where: { productId: id },
     });
 
-    // 🔥 remove produto
+    // 🔥 remove o produto (SEM storeId)
     await prisma.product.delete({
       where: { id },
     });
 
-    return res.json({ success: true });
+    res.json({ success: true });
   } catch (err) {
     console.error("Erro DELETE /products/:id:", err);
-    return res.status(500).json({
+    res.status(500).json({
       error: "Erro ao excluir produto",
+      details: err.message,
     });
   }
 });
