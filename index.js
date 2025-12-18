@@ -19,7 +19,8 @@ const prisma = new PrismaClient();
 const app = express();
 
 /* ===================================================
-   🔥 CORS GLOBAL (CORRETO – NODE 22 SAFE)
+   🔥 CORS GLOBAL — NODE 22 SAFE
+   (NÃO usar app.options)
 =================================================== */
 const corsOptions = {
   origin: [
@@ -82,4 +83,3 @@ const port = process.env.PORT || 3001;
 app.listen(port, "0.0.0.0", () => {
   console.log(`🔥 Servidor rodando na porta ${port}`);
 });
-
