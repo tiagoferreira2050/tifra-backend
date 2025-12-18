@@ -225,33 +225,42 @@ router.patch("/:id", verifyAuth, async (req, res) => {
 });
 
 /* ===================================================
-   DELETE /products/:id — PADRÃO COMPLEMENTS
+   DELETE - PRODUTO (SOFT DELETE - CORRETO)
 =================================================== */
-router.delete("/:id", async (req, res) => {
+router.delete("/", async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.body;
 
     if (!id) {
-      return res.status(400).json({ error: "ID obrigatório" });
+      return res.status(400).json({ error: "ID do produto obrigatório" });
     }
 
-    await prisma.productComplement.deleteMany({
-      where: { productId: id },
-    });
+    /**
+     * REGRA:
+     * - NÃO exclui pedidos
+     * - NÃO exclui clientes
+     * - NÃO exclui complementos
+     * - NÃO exclui itens
+     * - Produto apenas deixa de existir visualmente
+     */
 
-    await prisma.product.delete({
+    await prisma.product.update({
       where: { id },
+      data: {
+        active: false,
+      },
     });
 
     res.json({ success: true });
   } catch (err) {
-    console.error("Erro DELETE /products/:id:", err);
+    console.error("Erro DELETE /products:", err);
     res.status(500).json({
       error: "Erro ao excluir produto",
       details: err.message,
     });
   }
 });
+
 
 /* ===================================================
    POST /products/reorder
