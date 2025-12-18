@@ -173,7 +173,7 @@ router.patch("/", async (req, res) => {
 });
 
 /* ===================================================
-   DELETE - GRUPO + ITENS + VÍNCULOS
+   DELETE - GRUPO + ITENS + VÍNCULOS (CORRETO)
 =================================================== */
 router.delete("/", async (req, res) => {
   try {
@@ -184,30 +184,30 @@ router.delete("/", async (req, res) => {
     }
 
     /**
-     * ORDEM OBRIGATÓRIA:
-     * 1. Remove vínculo com produtos
-     * 2. Remove itens
-     * 3. Remove grupo
-     * 
-     * PRODUTOS NUNCA SÃO EXCLUÍDOS
+     * ORDEM CORRETA BASEADA NO BANCO REAL:
+     * 1. Remove vínculos com produtos (ProductComplement.groupId)
+     * 2. Remove itens do grupo (Complement.groupId)
+     * 3. Remove o grupo (ComplementGroup.id)
      */
-    await prisma.$transaction([
-      prisma.productComplement.deleteMany({
-        where: {
-          complementGroupId: id,
-        },
-      }),
 
-      prisma.complement.deleteMany({
-        where: {
-          groupId: id,
-        },
-      }),
+    // 1️⃣ Remove vínculo com produtos
+    await prisma.productComplement.deleteMany({
+      where: {
+        groupId: id,
+      },
+    });
 
-      prisma.complementGroup.delete({
-        where: { id },
-      }),
-    ]);
+    // 2️⃣ Remove itens
+    await prisma.complement.deleteMany({
+      where: {
+        groupId: id,
+      },
+    });
+
+    // 3️⃣ Remove grupo
+    await prisma.complementGroup.delete({
+      where: { id },
+    });
 
     res.json({ success: true });
   } catch (err) {
@@ -218,5 +218,3 @@ router.delete("/", async (req, res) => {
     });
   }
 });
-
-export default router;
