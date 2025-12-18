@@ -19,7 +19,7 @@ const prisma = new PrismaClient();
 const app = express();
 
 /* ===================================================
-   🔥 CORS GLOBAL (CORRETO + PRODUÇÃO)
+   🔥 CORS GLOBAL (CORRETO – NODE 22 SAFE)
 =================================================== */
 const corsOptions = {
   origin: [
@@ -33,8 +33,8 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-/* 🔥 PRE-FLIGHT GLOBAL (ESSENCIAL) */
-app.options("*", cors(corsOptions));
+/* 🔥 PRE-FLIGHT GLOBAL (NUNCA USAR "*") */
+app.options("/*", cors(corsOptions));
 
 /* ===================================================
    MIDDLEWARES
@@ -85,3 +85,4 @@ const port = process.env.PORT || 3001;
 app.listen(port, "0.0.0.0", () => {
   console.log(`🔥 Servidor rodando na porta ${port}`);
 });
+
