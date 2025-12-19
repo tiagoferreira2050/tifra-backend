@@ -1,170 +1,104 @@
 import { Router } from "express";
-import { prisma } from "../prisma/client.js";
+import { prisma } from "../lib/prisma";
 
 const router = Router();
 
-/* ===================================================
-   POST /orders - CRIAR PEDIDO
-=================================================== */
+/**
+ * POST /orders
+ * Cria pedido vindo do cardápio público
+ */
 router.post("/", async (req, res) => {
   try {
-    const body = req.body;
+    const {
+      storeId,
+      customer,
+      items,
+      paymentMethod,
+      deliveryFee = 0,
+      total,
+    } = req.body;
 
-    // 🔥 Compatível com NovoPedidoDrawer
-    const customerName = body.customerName ?? body.customer;
-    const customerPhone = body.customerPhone ?? body.phone ?? "";
-    const customerAddress = body.customerAddress ?? body.address ?? "";
-    const paymentMethod = body.paymentMethod;
-    const deliveryFee = body.deliveryFee || 0;
-
-    // 🔥 Normalizar itens
-    const items =
-      body.items?.map((it) => ({
-        productId: it.productId,
-        quantity: it.quantity ?? it.qty ?? 1,
-        unitPrice: it.unitPrice ?? it.price ?? 0,
-        complements: it.complements ?? it.selectedComplements ?? [],
-      })) ?? [];
-
-    if (!items.length) {
-      return res.status(400).json({ error: "Nenhum item no pedido" });
+    // ===============================
+    // VALIDAÇÕES BÁSICAS
+    // ===============================
+    if (!storeId) {
+      return res.status(400).json({ error: "storeId é obrigatório" });
     }
 
-    // 1️⃣ Criar ou reaproveitar cliente
-    let customer = null;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "Pedido sem itens" });
+    }
 
-    if (customerName) {
-      customer = await prisma.customer.findFirst({
-        where: { phone: customerPhone || "" },
+    if (!total || total <= 0) {
+      return res.status(400).json({ error: "Total inválido" });
+    }
+
+    // ===============================
+    // CLIENTE (CRIA OU REUTILIZA)
+    // ===============================
+    let customerRecord = null;
+
+    if (customer?.phone) {
+      customerRecord = await prisma.customer.findFirst({
+        where: {
+          phone: customer.phone,
+          storeId,
+        },
       });
 
-      if (!customer) {
-        customer = await prisma.customer.create({
+      if (!customerRecord) {
+        customerRecord = await prisma.customer.create({
           data: {
-            name: customerName,
-            phone: customerPhone || "",
-            address: customerAddress || "",
+            storeId,
+            name: customer.name || "Cliente",
+            phone: customer.phone,
+            address: customer.address || null,
           },
         });
       }
     }
 
-    // 2️⃣ Calcular total
-    const totalItems = items.reduce(
-      (acc, item) => acc + item.unitPrice * item.quantity,
-      0
-    );
-
-    const total = totalItems + deliveryFee;
-
-    // 3️⃣ Criar pedido
+    // ===============================
+    // CRIA PEDIDO
+    // ===============================
     const order = await prisma.order.create({
       data: {
-        status: "analysis",
+        storeId,
+        status: "NEW",
         total,
-        paymentMethod: paymentMethod || null,
+        paymentMethod,
         deliveryFee,
-        customerId: customer?.id || null,
+        customerId: customerRecord?.id || null,
       },
     });
 
-    // 4️⃣ Criar itens
-    await prisma.$transaction(
-      items.map((item) =>
-        prisma.orderItem.create({
-          data: {
-            orderId: order.id,
-            productId: item.productId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            complements: item.complements || [],
-          },
-        })
-      )
-    );
-
-    // 5️⃣ Buscar pedido completo
-    const fullOrder = await prisma.order.findUnique({
-      where: { id: order.id },
-      include: {
-        customer: true,
-        items: {
-          include: { product: true },
+    // ===============================
+    // ITENS DO PEDIDO
+    // ===============================
+    for (const item of items) {
+      const orderItem = await prisma.orderItem.create({
+        data: {
+          orderId: order.id,
+          productId: item.productId,
+          quantity: item.quantity || 1,
+          unitPrice: item.unitPrice,
+          complements: item.complements || null,
         },
-      },
+      });
+
+      // 👉 FUTURO:
+      // aqui depois a gente pode salvar complementos normalizados
+    }
+
+    return res.status(201).json({
+      success: true,
+      orderId: order.id,
     });
-
-    // 6️⃣ Normalizar para o painel
-    const normalized = {
-      id: fullOrder.id,
-      status: fullOrder.status,
-      total: fullOrder.total,
-      paymentMethod: fullOrder.paymentMethod,
-      createdAt: fullOrder.createdAt,
-
-      customer: fullOrder.customer?.name || "",
-      phone: fullOrder.customer?.phone || "",
-      address: fullOrder.customer?.address || "",
-      shortAddress: fullOrder.customer?.address?.split(",")[0] || "",
-
-      items: fullOrder.items.map((i) => ({
-        id: i.id,
-        quantity: i.quantity,
-        productName: i.product?.name,
-        productPrice: i.product?.price,
-        complements: i.complements || [],
-      })),
-    };
-
-    res.status(201).json(normalized);
-
   } catch (err) {
-    console.error("POST /orders error:", err);
-    res.status(500).json({ error: "Erro ao criar pedido" });
-  }
-});
-
-/* ===================================================
-   GET /orders - LISTAR PEDIDOS
-=================================================== */
-router.get("/", async (req, res) => {
-  try {
-    const orders = await prisma.order.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        items: {
-          include: { product: true },
-        },
-        customer: true,
-      },
+    console.error("Erro ao criar pedido:", err);
+    return res.status(500).json({
+      error: "Erro interno ao criar pedido",
     });
-
-    const normalized = orders.map((o) => ({
-      id: o.id,
-      status: o.status,
-      total: o.total,
-      paymentMethod: o.paymentMethod,
-      createdAt: o.createdAt,
-
-      customer: o.customer?.name || "",
-      phone: o.customer?.phone || "",
-      address: o.customer?.address || "",
-      shortAddress: o.customer?.address?.split(",")[0] || "",
-
-      items: o.items.map((i) => ({
-        id: i.id,
-        quantity: i.quantity,
-        productName: i.product?.name,
-        productPrice: i.product?.price,
-        complements: i.complements || [],
-      })),
-    }));
-
-    res.json(normalized);
-
-  } catch (err) {
-    console.error("GET /orders error:", err);
-    res.status(500).json({ error: "Erro ao listar pedidos" });
   }
 });
 

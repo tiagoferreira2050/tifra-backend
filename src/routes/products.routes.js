@@ -116,6 +116,44 @@ router.get("/", verifyAuth, async (req, res) => {
 });
 
 /* ===================================================
+   GET /products/pdv — LISTAR PRODUTOS PARA NOVO PEDIDO
+   (SEM AUTH — USADO NO GESTOR / PDV)
+=================================================== */
+router.get("/pdv", async (req, res) => {
+  try {
+    const { storeId } = req.query;
+
+    if (!storeId) {
+      return res.status(400).json({ error: "storeId é obrigatório" });
+    }
+
+    const products = await prisma.product.findMany({
+      where: {
+        storeId: String(storeId),
+        active: true,
+      },
+      orderBy: {
+        order: "asc",
+      },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        imageUrl: true,
+      },
+    });
+
+    res.json(products);
+  } catch (error) {
+    console.error("Erro GET /products/pdv:", error);
+    res.status(500).json({ error: "Erro ao listar produtos PDV" });
+  }
+});
+
+
+
+
+/* ===================================================
    GET /products/:id
 =================================================== */
 router.get("/:id", verifyAuth, async (req, res) => {
