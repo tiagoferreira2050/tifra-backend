@@ -13,9 +13,6 @@ router.get("/", async (req, res) => {
   try {
     const { storeId } = req.query;
 
-    // ===============================
-    // VALIDAÇÃO
-    // ===============================
     if (!storeId) {
       return res.status(400).json({ error: "storeId é obrigatório" });
     }
@@ -33,9 +30,6 @@ router.get("/", async (req, res) => {
       },
     });
 
-    // ===============================
-    // NORMALIZA PARA O FRONT
-    // ===============================
     const formatted = orders.map((order) => ({
       id: order.id,
       customer: order.customer?.name || "Cliente",
@@ -79,7 +73,7 @@ router.post("/", async (req, res) => {
     } = req.body;
 
     // ===============================
-    // VALIDAÇÕES BÁSICAS
+    // VALIDAÇÕES
     // ===============================
     if (!storeId) {
       return res.status(400).json({ error: "storeId é obrigatório" });
@@ -147,10 +141,36 @@ router.post("/", async (req, res) => {
       });
     }
 
-    return res.status(201).json({
-      id: order.id,
-      success: true,
+    // ===============================
+    // BUSCA PEDIDO COMPLETO
+    // ===============================
+    const fullOrder = await prisma.order.findUnique({
+      where: { id: order.id },
+      include: {
+        customer: true,
+        items: true,
+      },
     });
+
+    // ===============================
+    // RETORNO NORMALIZADO (IGUAL AO GET)
+    // ===============================
+    return res.status(201).json({
+      id: fullOrder.id,
+      customer: fullOrder.customer?.name || "Cliente",
+      phone: fullOrder.customer?.phone || null,
+      address: fullOrder.customer?.address || null,
+      shortAddress: fullOrder.customer?.address
+        ? fullOrder.customer.address.split("-")[0]
+        : null,
+      status: "analysis",
+      total: Number(fullOrder.total),
+      paymentMethod: fullOrder.paymentMethod || null,
+      deliveryFee: Number(fullOrder.deliveryFee || 0),
+      createdAt: fullOrder.createdAt,
+      items: fullOrder.items || [],
+    });
+
   } catch (err) {
     console.error("Erro ao criar pedido:", err);
     return res.status(500).json({
