@@ -1,12 +1,66 @@
 import { Router } from "express";
 import { prisma } from "../prisma/client.js";
 
-
 const router = Router();
 
 /**
+ * ======================================================
+ * GET /orders
+ * Lista pedidos da loja (GESTOR / PDV)
+ * ======================================================
+ */
+router.get("/", async (req, res) => {
+  try {
+    const { storeId } = req.query;
+
+    if (!storeId) {
+      return res.status(400).json({ error: "storeId é obrigatório" });
+    }
+
+    const orders = await prisma.order.findMany({
+      where: {
+        storeId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      include: {
+        customer: true,
+        items: true,
+      },
+    });
+
+    // 🔥 Normalização para o FRONT
+    const formatted = orders.map((order) => ({
+      id: order.id,
+      customer: order.customer?.name || "Cliente",
+      phone: order.customer?.phone || null,
+      address: order.customer?.address || null,
+      shortAddress: order.customer?.address
+        ? order.customer.address.split("-")[0]
+        : null,
+      status: mapStatus(order.status),
+      total: order.total,
+      paymentMethod: order.paymentMethod,
+      deliveryFee: order.deliveryFee,
+      createdAt: order.createdAt,
+      items: order.items,
+    }));
+
+    return res.json(formatted);
+  } catch (err) {
+    console.error("Erro ao listar pedidos:", err);
+    return res.status(500).json({
+      error: "Erro ao listar pedidos",
+    });
+  }
+});
+
+/**
+ * ======================================================
  * POST /orders
- * Cria pedido vindo do cardápio público
+ * Cria pedido (PDV / Cardápio público)
+ * ======================================================
  */
 router.post("/", async (req, res) => {
   try {
@@ -77,7 +131,7 @@ router.post("/", async (req, res) => {
     // ITENS DO PEDIDO
     // ===============================
     for (const item of items) {
-      const orderItem = await prisma.orderItem.create({
+      await prisma.orderItem.create({
         data: {
           orderId: order.id,
           productId: item.productId,
@@ -86,14 +140,11 @@ router.post("/", async (req, res) => {
           complements: item.complements || null,
         },
       });
-
-      // 👉 FUTURO:
-      // aqui depois a gente pode salvar complementos normalizados
     }
 
     return res.status(201).json({
+      id: order.id,
       success: true,
-      orderId: order.id,
     });
   } catch (err) {
     console.error("Erro ao criar pedido:", err);
@@ -102,5 +153,25 @@ router.post("/", async (req, res) => {
     });
   }
 });
+
+/**
+ * ======================================================
+ * MAP STATUS (BACKEND → FRONT)
+ * ======================================================
+ */
+function mapStatus(status) {
+  switch (status) {
+    case "NEW":
+      return "analysis";
+    case "PREPARING":
+      return "preparing";
+    case "DELIVERING":
+      return "delivering";
+    case "FINISHED":
+      return "finished";
+    default:
+      return "analysis";
+  }
+}
 
 export default router;
