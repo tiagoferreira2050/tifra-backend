@@ -13,13 +13,16 @@ router.get("/", async (req, res) => {
   try {
     const { storeId } = req.query;
 
+    // ===============================
+    // VALIDAÇÃO
+    // ===============================
     if (!storeId) {
       return res.status(400).json({ error: "storeId é obrigatório" });
     }
 
     const orders = await prisma.order.findMany({
       where: {
-        storeId,
+        storeId: String(storeId),
       },
       orderBy: {
         createdAt: "desc",
@@ -30,7 +33,9 @@ router.get("/", async (req, res) => {
       },
     });
 
-    // 🔥 Normalização para o FRONT
+    // ===============================
+    // NORMALIZA PARA O FRONT
+    // ===============================
     const formatted = orders.map((order) => ({
       id: order.id,
       customer: order.customer?.name || "Cliente",
@@ -40,11 +45,11 @@ router.get("/", async (req, res) => {
         ? order.customer.address.split("-")[0]
         : null,
       status: mapStatus(order.status),
-      total: order.total,
-      paymentMethod: order.paymentMethod,
-      deliveryFee: order.deliveryFee,
+      total: Number(order.total),
+      paymentMethod: order.paymentMethod || null,
+      deliveryFee: Number(order.deliveryFee || 0),
       createdAt: order.createdAt,
-      items: order.items,
+      items: order.items || [],
     }));
 
     return res.json(formatted);
@@ -84,7 +89,7 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Pedido sem itens" });
     }
 
-    if (!total || total <= 0) {
+    if (!total || Number(total) <= 0) {
       return res.status(400).json({ error: "Total inválido" });
     }
 
@@ -97,14 +102,14 @@ router.post("/", async (req, res) => {
       customerRecord = await prisma.customer.findFirst({
         where: {
           phone: customer.phone,
-          storeId,
+          storeId: String(storeId),
         },
       });
 
       if (!customerRecord) {
         customerRecord = await prisma.customer.create({
           data: {
-            storeId,
+            storeId: String(storeId),
             name: customer.name || "Cliente",
             phone: customer.phone,
             address: customer.address || null,
@@ -118,11 +123,11 @@ router.post("/", async (req, res) => {
     // ===============================
     const order = await prisma.order.create({
       data: {
-        storeId,
+        storeId: String(storeId),
         status: "NEW",
-        total,
-        paymentMethod,
-        deliveryFee,
+        total: Number(total),
+        paymentMethod: paymentMethod || null,
+        deliveryFee: Number(deliveryFee || 0),
         customerId: customerRecord?.id || null,
       },
     });
@@ -136,7 +141,7 @@ router.post("/", async (req, res) => {
           orderId: order.id,
           productId: item.productId,
           quantity: item.quantity || 1,
-          unitPrice: item.unitPrice,
+          unitPrice: Number(item.unitPrice),
           complements: item.complements || null,
         },
       });
