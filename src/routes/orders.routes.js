@@ -31,7 +31,7 @@ router.get("/", async (req, res) => {
       },
     });
 
-    // 🔒 normalizeOrder É async → precisa Promise.all
+    // normalizeOrder é async
     const formatted = await Promise.all(
       orders.map((order) => normalizeOrder(order))
     );
@@ -121,11 +121,12 @@ router.post("/", async (req, res) => {
           quantity: Number(item.quantity || 1),
           unitPrice: Number(item.unitPrice),
 
-          // ✅ complementos SALVOS COM NOME REAL
+          // 🔒 salva tudo que veio do frontend (NÃO perde info)
           complements: Array.isArray(item.complements)
             ? item.complements.map((c) => ({
-                id: c.id || null,
-                name: c.name || "Complemento",
+                optionName: c.optionName || c.name || "Complemento",
+                groupTitle: c.groupTitle || null,
+                qty: Number(c.qty || 1),
                 price: Number(c.price || 0),
               }))
             : [],
@@ -237,10 +238,11 @@ function mapStatus(status) {
 }
 
 /**
- * 🔥 NORMALIZAÇÃO FINAL (SEM BUG)
- * - Usa nome REAL salvo no orderItem
- * - Compatível com pedidos antigos
- * - Não quebra nada existente
+ * 🔥 NORMALIZAÇÃO FINAL (BUG ELIMINADO)
+ * - usa optionName (novo)
+ * - fallback para name (antigo)
+ * - não inventa dados
+ * - não quebra pedidos antigos
  */
 async function normalizeOrder(order) {
   return {
@@ -257,18 +259,12 @@ async function normalizeOrder(order) {
     deliveryFee: Number(order.deliveryFee || 0),
     createdAt: order.createdAt,
 
-    // 🔥 ITENS COMPLETOS E CORRETOS
     items: order.items.map((item) => {
       const complements = Array.isArray(item.complements)
         ? item.complements.map((c) => ({
-            name:
-               c.optionName ||     // ✅ pedidos novos
-    c.name ||           // fallback antigo
-    real?.name ||       // complemento cadastrado
-    "Complemento",
-            groupTitle: c.groupTitle || null,
+            name: c.optionName || c.name || "Complemento",
             quantity: Number(c.qty || 1),
-              price: Number(c.price || real?.price || 0),
+            price: Number(c.price || 0),
           }))
         : [];
 
