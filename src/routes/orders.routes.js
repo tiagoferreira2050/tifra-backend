@@ -195,21 +195,32 @@ function normalizeOrder(order) {
     deliveryFee: Number(order.deliveryFee || 0),
     createdAt: order.createdAt,
 
-    // 🔥 ITENS NORMALIZADOS (O MODAL PRECISA DISSO)
-    items: order.items.map((item) => ({
-      qty: item.quantity,
-      name: item.product?.name || "Produto",
-      unitPrice: Number(item.unitPrice),
+    // 🔥 NORMALIZAÇÃO REAL DOS ITENS
+    items: order.items.map((item) => {
+      const complementsRaw = Array.isArray(item.complements)
+        ? item.complements
+        : [];
 
-      complements: Array.isArray(item.complements)
-        ? item.complements.map((c) => ({
-            name: c.name || c.title || "Complemento",
-            price: Number(c.price || 0),
-          }))
-        : [],
-    })),
+      const complements = complementsRaw.map((c) => ({
+        name:
+          c.itemName ||
+          c.name ||
+          c.title ||
+          "Complemento",
+        price: Number(c.price || 0),
+      }));
+
+      return {
+        qty: item.quantity,
+        name: item.product?.name || "Produto",
+        unitPrice: Number(item.unitPrice),
+
+        complements,
+      };
+    }),
   };
 }
+
 
 
 export default router;
