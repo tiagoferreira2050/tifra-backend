@@ -31,12 +31,7 @@ router.get("/", async (req, res) => {
       },
     });
 
-    // 🔒 normalizeOrder É async → precisa Promise.all
-    const formatted = await Promise.all(
-      orders.map((order) => normalizeOrder(order))
-    );
-
-    return res.json(formatted);
+    return res.json(orders.map(normalizeOrder));
   } catch (err) {
     console.error("Erro ao listar pedidos:", err);
     return res.status(500).json({ error: "Erro ao listar pedidos" });
@@ -45,7 +40,7 @@ router.get("/", async (req, res) => {
 
 /**
  * ======================================================
- * POST /orders
+ * POST /orders  ✅ AQUI ESTAVA O PROBLEMA
  * ======================================================
  */
 router.post("/", async (req, res) => {
@@ -111,7 +106,7 @@ router.post("/", async (req, res) => {
     });
 
     // ===============================
-    // CRIA ITENS DO PEDIDO
+    // 🔥 CRIA ITENS DO PEDIDO (FIX FINAL)
     // ===============================
     for (const item of items) {
       await prisma.orderItem.create({
@@ -121,11 +116,11 @@ router.post("/", async (req, res) => {
           quantity: Number(item.quantity || 1),
           unitPrice: Number(item.unitPrice),
 
-          // ✅ complementos SALVOS COM NOME REAL
+          // 🔥 SALVA COMPLEMENTOS COM NOME REAL
           complements: Array.isArray(item.complements)
             ? item.complements.map((c) => ({
                 id: c.id || null,
-                name: c.name || "Complemento",
+                name: c.name,              // ✅ Banana, Leite em pó, etc
                 price: Number(c.price || 0),
               }))
             : [],
@@ -134,7 +129,7 @@ router.post("/", async (req, res) => {
     }
 
     // ===============================
-    // BUSCA PEDIDO COMPLETO
+    // RETORNA PEDIDO COMPLETO
     // ===============================
     const fullOrder = await prisma.order.findUnique({
       where: { id: order.id },
@@ -150,9 +145,7 @@ router.post("/", async (req, res) => {
       },
     });
 
-    const normalized = await normalizeOrder(fullOrder);
-
-    return res.status(201).json(normalized);
+    return res.status(201).json(normalizeOrder(fullOrder));
   } catch (err) {
     console.error("Erro ao criar pedido:", err);
     return res.status(500).json({ error: "Erro ao criar pedido" });
@@ -205,9 +198,7 @@ router.patch("/:id/status", async (req, res) => {
       },
     });
 
-    const normalized = await normalizeOrder(updated);
-
-    return res.json(normalized);
+    return res.json(normalizeOrder(updated));
   } catch (err) {
     console.error("Erro ao atualizar status:", err);
     return res.status(500).json({ error: "Erro ao atualizar status" });
@@ -236,13 +227,30 @@ function mapStatus(status) {
   }
 }
 
-/**
- * 🔥 NORMALIZAÇÃO FINAL (SEM BUG)
- * - Usa nome REAL salvo no orderItem
- * - Compatível com pedidos antigos
- * - Não quebra nada existente
- */
 async function normalizeOrder(order) {
+  // 🔥 coleta todos os complement IDs do pedido
+  const complementIds = [];
+
+  order.items.forEach((item) => {
+    if (Array.isArray(item.complements)) {
+      item.complements.forEach((c) => {
+        if (c.id) complementIds.push(c.id);
+      });
+    }
+  });
+
+  // 🔥 busca os complementos reais no banco
+  const complementsFromDb = complementIds.length
+    ? await prisma.complement.findMany({
+        where: { id: { in: complementIds } },
+        select: { id: true, name: true, price: true },
+      })
+    : [];
+
+  const complementMap = Object.fromEntries(
+    complementsFromDb.map((c) => [c.id, c])
+  );
+
   return {
     id: order.id,
     customer: order.customer?.name || "Cliente",
@@ -257,12 +265,16 @@ async function normalizeOrder(order) {
     deliveryFee: Number(order.deliveryFee || 0),
     createdAt: order.createdAt,
 
+    // 🔥 ITENS 100% DETALHADOS
     items: order.items.map((item) => {
       const complements = Array.isArray(item.complements)
-        ? item.complements.map((c) => ({
-            name: c.name || "Complemento",
-            price: Number(c.price || 0),
-          }))
+        ? item.complements.map((c) => {
+            const real = complementMap[c.id];
+            return {
+              name: real?.name || "Complemento",
+              price: Number(c.price || real?.price || 0),
+            };
+          })
         : [];
 
       const complementsTotal = complements.reduce(
@@ -284,5 +296,6 @@ async function normalizeOrder(order) {
     }),
   };
 }
+
 
 export default router;
