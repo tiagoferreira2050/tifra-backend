@@ -21,7 +21,11 @@ router.get("/", async (req, res) => {
       orderBy: { createdAt: "desc" },
       include: {
         customer: true,
-        items: true,
+        items: {
+          include: {
+            product: true, // 🔥 ESSENCIAL
+          },
+        },
       },
     });
 
@@ -190,8 +194,22 @@ function normalizeOrder(order) {
     paymentMethod: order.paymentMethod || null,
     deliveryFee: Number(order.deliveryFee || 0),
     createdAt: order.createdAt,
-    items: order.items || [],
+
+    // 🔥 ITENS NORMALIZADOS (O MODAL PRECISA DISSO)
+    items: order.items.map((item) => ({
+      qty: item.quantity,
+      name: item.product?.name || "Produto",
+      unitPrice: Number(item.unitPrice),
+
+      complements: Array.isArray(item.complements)
+        ? item.complements.map((c) => ({
+            name: c.name || c.title || "Complemento",
+            price: Number(c.price || 0),
+          }))
+        : [],
+    })),
   };
 }
+
 
 export default router;
