@@ -30,21 +30,7 @@ router.get("/", async (req, res) => {
       },
     });
 
-    const formatted = orders.map((order) => ({
-      id: order.id,
-      customer: order.customer?.name || "Cliente",
-      phone: order.customer?.phone || null,
-      address: order.customer?.address || null,
-      shortAddress: order.customer?.address
-        ? order.customer.address.split("-")[0]
-        : null,
-      status: mapStatus(order.status),
-      total: Number(order.total),
-      paymentMethod: order.paymentMethod || null,
-      deliveryFee: Number(order.deliveryFee || 0),
-      createdAt: order.createdAt,
-      items: order.items || [],
-    }));
+    const formatted = orders.map((order) => normalizeOrder(order));
 
     return res.json(formatted);
   } catch (err) {
@@ -72,9 +58,6 @@ router.post("/", async (req, res) => {
       total,
     } = req.body;
 
-    // ===============================
-    // VALIDAÇÕES
-    // ===============================
     if (!storeId) {
       return res.status(400).json({ error: "storeId é obrigatório" });
     }
@@ -87,9 +70,6 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Total inválido" });
     }
 
-    // ===============================
-    // CLIENTE (CRIA OU REUTILIZA)
-    // ===============================
     let customerRecord = null;
 
     if (customer?.phone) {
@@ -112,9 +92,6 @@ router.post("/", async (req, res) => {
       }
     }
 
-    // ===============================
-    // CRIA PEDIDO
-    // ===============================
     const order = await prisma.order.create({
       data: {
         storeId: String(storeId),
@@ -126,9 +103,6 @@ router.post("/", async (req, res) => {
       },
     });
 
-    // ===============================
-    // ITENS DO PEDIDO
-    // ===============================
     for (const item of items) {
       await prisma.orderItem.create({
         data: {
@@ -141,9 +115,6 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // ===============================
-    // BUSCA PEDIDO COMPLETO
-    // ===============================
     const fullOrder = await prisma.order.findUnique({
       where: { id: order.id },
       include: {
@@ -152,25 +123,7 @@ router.post("/", async (req, res) => {
       },
     });
 
-    // ===============================
-    // RETORNO NORMALIZADO (IGUAL AO GET)
-    // ===============================
-    return res.status(201).json({
-      id: fullOrder.id,
-      customer: fullOrder.customer?.name || "Cliente",
-      phone: fullOrder.customer?.phone || null,
-      address: fullOrder.customer?.address || null,
-      shortAddress: fullOrder.customer?.address
-        ? fullOrder.customer.address.split("-")[0]
-        : null,
-      status: "analysis",
-      total: Number(fullOrder.total),
-      paymentMethod: fullOrder.paymentMethod || null,
-      deliveryFee: Number(fullOrder.deliveryFee || 0),
-      createdAt: fullOrder.createdAt,
-      items: fullOrder.items || [],
-    });
-
+    return res.status(201).json(normalizeOrder(fullOrder));
   } catch (err) {
     console.error("Erro ao criar pedido:", err);
     return res.status(500).json({
@@ -178,27 +131,6 @@ router.post("/", async (req, res) => {
     });
   }
 });
-
-/**
- * ======================================================
- * MAP STATUS (BACKEND → FRONT)
- * ======================================================
- */
-function mapStatus(status) {
-  switch (status) {
-    case "NEW":
-      return "analysis";
-    case "PREPARING":
-      return "preparing";
-    case "DELIVERING":
-      return "delivering";
-    case "FINISHED":
-      return "finished";
-    default:
-      return "analysis";
-  }
-}
-
 
 /**
  * ======================================================
@@ -219,7 +151,14 @@ router.patch("/:id/status", async (req, res) => {
       return res.status(400).json({ error: "status é obrigatório" });
     }
 
-    // Mapeia status do FRONT → BACK
+    const orderExists = await prisma.order.findUnique({
+      where: { id },
+    });
+
+    if (!orderExists) {
+      return res.status(404).json({ error: "Pedido não encontrado" });
+    }
+
     let dbStatus;
     switch (status) {
       case "analysis":
@@ -241,12 +180,13 @@ router.patch("/:id/status", async (req, res) => {
     const updated = await prisma.order.update({
       where: { id },
       data: { status: dbStatus },
+      include: {
+        customer: true,
+        items: true,
+      },
     });
 
-    return res.json({
-      id: updated.id,
-      status: mapStatus(updated.status),
-    });
+    return res.json(normalizeOrder(updated));
   } catch (err) {
     console.error("Erro ao atualizar status do pedido:", err);
     return res.status(500).json({
@@ -255,5 +195,42 @@ router.patch("/:id/status", async (req, res) => {
   }
 });
 
+/**
+ * ======================================================
+ * HELPERS
+ * ======================================================
+ */
+function mapStatus(status) {
+  switch (status) {
+    case "NEW":
+      return "analysis";
+    case "PREPARING":
+      return "preparing";
+    case "DELIVERING":
+      return "delivering";
+    case "FINISHED":
+      return "finished";
+    default:
+      return "analysis";
+  }
+}
+
+function normalizeOrder(order) {
+  return {
+    id: order.id,
+    customer: order.customer?.name || "Cliente",
+    phone: order.customer?.phone || null,
+    address: order.customer?.address || null,
+    shortAddress: order.customer?.address
+      ? order.customer.address.split("-")[0]
+      : null,
+    status: mapStatus(order.status),
+    total: Number(order.total),
+    paymentMethod: order.paymentMethod || null,
+    deliveryFee: Number(order.deliveryFee || 0),
+    createdAt: order.createdAt,
+    items: order.items || [],
+  };
+}
 
 export default router;

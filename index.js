@@ -20,7 +20,7 @@ const prisma = new PrismaClient();
 const app = express();
 
 /* ===================================================
-   🔥 CORS GLOBAL — NODE 22 SAFE
+   🔥 CORS GLOBAL — ESTÁVEL (Railway + Front)
 =================================================== */
 const corsOptions = {
   origin: [
@@ -28,17 +28,24 @@ const corsOptions = {
     "http://localhost:3000",
   ],
   credentials: true,
-  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
 app.use(cors(corsOptions));
 
 /* ===================================================
-   MIDDLEWARES
+   🔥 MIDDLEWARES (ORDEM IMPORTA)
 =================================================== */
+
+// cookies
 app.use(cookieParser());
-app.use(express.json());
+
+// 🔥 JSON — OBRIGATÓRIO ANTES DAS ROTAS
+app.use(express.json({ limit: "10mb" }));
+
+// 🔥 URLENCODED — PATCH SAFE (Railway fix)
+app.use(express.urlencoded({ extended: true }));
 
 /* ===================================================
    HEALTH CHECK
@@ -63,7 +70,7 @@ app.use("/complements", complementsRoutes);
 // 🧩 complement items (ITENS)
 app.use("/complement-items", complementItemsRoutes);
 
-// 🧾 orders
+// 🧾 orders (🔥 STATUS FUNCIONA ATÉ FINALIZAR)
 app.use("/orders", ordersRoutes);
 
 // 🏪 stores
