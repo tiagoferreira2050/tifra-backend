@@ -3,12 +3,9 @@ import { prisma } from "../prisma/client.js";
 
 const router = Router();
 
-/**
- * ======================================================
- * GET /orders
- * Lista pedidos da loja (GESTOR / PDV)
- * ======================================================
- */
+/* ======================================================
+   GET /orders
+====================================================== */
 router.get("/", async (req, res) => {
   try {
     const { storeId } = req.query;
@@ -18,72 +15,35 @@ router.get("/", async (req, res) => {
     }
 
     const orders = await prisma.order.findMany({
-      where: {
-        storeId: String(storeId),
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: {
-        customer: true,
-        items: true,
-      },
+      where: { storeId: String(storeId) },
+      orderBy: { createdAt: "desc" },
+      include: { customer: true, items: true },
     });
 
-    const formatted = orders.map(normalizeOrder);
-
-    return res.json(formatted);
+    return res.json(orders.map(normalizeOrder));
   } catch (err) {
-    console.error("Erro ao listar pedidos:", err);
-    return res.status(500).json({
-      error: "Erro ao listar pedidos",
-    });
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao listar pedidos" });
   }
 });
 
-/**
- * ======================================================
- * POST /orders
- * Cria pedido (PDV / Cardápio público)
- * ======================================================
- */
+/* ======================================================
+   POST /orders
+====================================================== */
 router.post("/", async (req, res) => {
   try {
-    const {
-      storeId,
-      customer,
-      items,
-      paymentMethod,
-      deliveryFee = 0,
-      total,
-    } = req.body;
+    const { storeId, customer, items, paymentMethod, deliveryFee = 0, total } =
+      req.body;
 
-    // ===============================
-    // VALIDAÇÕES
-    // ===============================
-    if (!storeId) {
-      return res.status(400).json({ error: "storeId é obrigatório" });
+    if (!storeId || !items?.length || !total) {
+      return res.status(400).json({ error: "Dados inválidos" });
     }
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: "Pedido sem itens" });
-    }
-
-    if (!total || Number(total) <= 0) {
-      return res.status(400).json({ error: "Total inválido" });
-    }
-
-    // ===============================
-    // CLIENTE (CRIA OU REUTILIZA)
-    // ===============================
     let customerRecord = null;
 
     if (customer?.phone) {
       customerRecord = await prisma.customer.findFirst({
-        where: {
-          phone: customer.phone,
-          storeId: String(storeId),
-        },
+        where: { phone: customer.phone, storeId: String(storeId) },
       });
 
       if (!customerRecord) {
@@ -98,23 +58,17 @@ router.post("/", async (req, res) => {
       }
     }
 
-    // ===============================
-    // CRIA PEDIDO
-    // ===============================
     const order = await prisma.order.create({
       data: {
         storeId: String(storeId),
         status: "NEW",
         total: Number(total),
         paymentMethod: paymentMethod || null,
-        deliveryFee: Number(deliveryFee || 0),
+        deliveryFee: Number(deliveryFee),
         customerId: customerRecord?.id || null,
       },
     });
 
-    // ===============================
-    // ITENS DO PEDIDO
-    // ===============================
     for (const item of items) {
       await prisma.orderItem.create({
         data: {
@@ -127,53 +81,35 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // ===============================
-    // BUSCA PEDIDO COMPLETO
-    // ===============================
-    const fullOrder = await prisma.order.findUnique({
+    const full = await prisma.order.findUnique({
       where: { id: order.id },
-      include: {
-        customer: true,
-        items: true,
-      },
+      include: { customer: true, items: true },
     });
 
-    return res.status(201).json(normalizeOrder(fullOrder));
+    return res.status(201).json(normalizeOrder(full));
   } catch (err) {
-    console.error("Erro ao criar pedido:", err);
-    return res.status(500).json({
-      error: "Erro interno ao criar pedido",
-    });
+    console.error(err);
+    return res.status(500).json({ error: "Erro ao criar pedido" });
   }
 });
 
-/**
- * ======================================================
- * PATCH /orders/:id/status
- * Atualiza status do pedido (GESTOR)
- * ======================================================
- */
+/* ======================================================
+   PATCH /orders/:id/status
+====================================================== */
 router.patch("/:id/status", async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!id) {
-      return res.status(400).json({ error: "id é obrigatório" });
+    if (!id || !status) {
+      return res.status(400).json({ error: "id e status são obrigatórios" });
     }
 
-    if (!status) {
-      return res.status(400).json({ error: "status é obrigatório" });
-    }
-
-    /**
-     * 🔥 MAPEAMENTO CORRETO FRONT → PRISMA
-     * (AQUI ESTAVA O BUG)
-     */
+    // 🔥 MAPA CORRETO FRONT → PRISMA
     const statusMap = {
       analysis: "NEW",
       preparing: "PREPARING",
-      delivering: "DELIVERY", // ✅ ENUM REAL DO PRISMA
+      delivering: "DELIVERY", // ✅ CORRETO
       finished: "FINISHED",
     };
 
@@ -186,26 +122,19 @@ router.patch("/:id/status", async (req, res) => {
     const updated = await prisma.order.update({
       where: { id },
       data: { status: dbStatus },
-      include: {
-        customer: true,
-        items: true,
-      },
+      include: { customer: true, items: true },
     });
 
     return res.json(normalizeOrder(updated));
   } catch (err) {
-    console.error("Erro ao atualizar status do pedido:", err);
-    return res.status(500).json({
-      error: "Erro ao atualizar status do pedido",
-    });
+    console.error("PATCH STATUS ERROR:", err);
+    return res.status(500).json({ error: "Erro ao atualizar status do pedido" });
   }
 });
 
-/**
- * ======================================================
- * HELPERS
- * ======================================================
- */
+/* ======================================================
+   HELPERS
+====================================================== */
 function mapStatus(status) {
   switch (status) {
     case "NEW":
