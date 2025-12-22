@@ -215,11 +215,16 @@ function normalizeOrder(order) {
     // 🔥 ITENS COMPLETOS PARA O MODAL
     items: order.items.map((item) => {
       const complements = Array.isArray(item.complements)
-        ? item.complements.map((c) => ({
-            name: c.name || c.itemName || "Complemento",
-            price: Number(c.price || 0),
-          }))
-        : [];
+  ? item.complements.map((c) => ({
+      name:
+        c.item?.name ||          // quando vier estruturado
+        c.name ||                // fallback direto
+        c.label ||               // fallback PDV
+        "Complemento",
+      price: Number(c.price || 0),
+    }))
+  : [];
+
 
       const complementsTotal = complements.reduce(
         (acc, c) => acc + c.price,
