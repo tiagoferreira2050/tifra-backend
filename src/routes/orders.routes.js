@@ -199,4 +199,61 @@ function mapStatus(status) {
   }
 }
 
+
+/**
+ * ======================================================
+ * PATCH /orders/:id/status
+ * Atualiza status do pedido (GESTOR)
+ * ======================================================
+ */
+router.patch("/:id/status", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: "id é obrigatório" });
+    }
+
+    if (!status) {
+      return res.status(400).json({ error: "status é obrigatório" });
+    }
+
+    // Mapeia status do FRONT → BACK
+    let dbStatus;
+    switch (status) {
+      case "analysis":
+        dbStatus = "NEW";
+        break;
+      case "preparing":
+        dbStatus = "PREPARING";
+        break;
+      case "delivering":
+        dbStatus = "DELIVERING";
+        break;
+      case "finished":
+        dbStatus = "FINISHED";
+        break;
+      default:
+        return res.status(400).json({ error: "status inválido" });
+    }
+
+    const updated = await prisma.order.update({
+      where: { id },
+      data: { status: dbStatus },
+    });
+
+    return res.json({
+      id: updated.id,
+      status: mapStatus(updated.status),
+    });
+  } catch (err) {
+    console.error("Erro ao atualizar status do pedido:", err);
+    return res.status(500).json({
+      error: "Erro ao atualizar status do pedido",
+    });
+  }
+});
+
+
 export default router;
