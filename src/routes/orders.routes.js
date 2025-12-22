@@ -3,9 +3,11 @@ import { prisma } from "../prisma/client.js";
 
 const router = Router();
 
-/* ======================================================
-   GET /orders
-====================================================== */
+/**
+ * ======================================================
+ * GET /orders
+ * ======================================================
+ */
 router.get("/", async (req, res) => {
   try {
     const { storeId } = req.query;
@@ -17,33 +19,55 @@ router.get("/", async (req, res) => {
     const orders = await prisma.order.findMany({
       where: { storeId: String(storeId) },
       orderBy: { createdAt: "desc" },
-      include: { customer: true, items: true },
+      include: {
+        customer: true,
+        items: true,
+      },
     });
 
     return res.json(orders.map(normalizeOrder));
   } catch (err) {
-    console.error(err);
+    console.error("Erro ao listar pedidos:", err);
     return res.status(500).json({ error: "Erro ao listar pedidos" });
   }
 });
 
-/* ======================================================
-   POST /orders
-====================================================== */
+/**
+ * ======================================================
+ * POST /orders
+ * ======================================================
+ */
 router.post("/", async (req, res) => {
   try {
-    const { storeId, customer, items, paymentMethod, deliveryFee = 0, total } =
-      req.body;
+    const {
+      storeId,
+      customer,
+      items,
+      paymentMethod,
+      deliveryFee = 0,
+      total,
+    } = req.body;
 
-    if (!storeId || !items?.length || !total) {
-      return res.status(400).json({ error: "Dados inválidos" });
+    if (!storeId) {
+      return res.status(400).json({ error: "storeId é obrigatório" });
+    }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "Pedido sem itens" });
+    }
+
+    if (!total || Number(total) <= 0) {
+      return res.status(400).json({ error: "Total inválido" });
     }
 
     let customerRecord = null;
 
     if (customer?.phone) {
       customerRecord = await prisma.customer.findFirst({
-        where: { phone: customer.phone, storeId: String(storeId) },
+        where: {
+          phone: customer.phone,
+          storeId: String(storeId),
+        },
       });
 
       if (!customerRecord) {
@@ -64,53 +88,45 @@ router.post("/", async (req, res) => {
         status: "NEW",
         total: Number(total),
         paymentMethod: paymentMethod || null,
-        deliveryFee: Number(deliveryFee),
+        deliveryFee: Number(deliveryFee || 0),
         customerId: customerRecord?.id || null,
+      },
+      include: {
+        customer: true,
+        items: true,
       },
     });
 
-    for (const item of items) {
-      await prisma.orderItem.create({
-        data: {
-          orderId: order.id,
-          productId: item.productId,
-          quantity: item.quantity || 1,
-          unitPrice: Number(item.unitPrice),
-          complements: item.complements || null,
-        },
-      });
-    }
-
-    const full = await prisma.order.findUnique({
-      where: { id: order.id },
-      include: { customer: true, items: true },
-    });
-
-    return res.status(201).json(normalizeOrder(full));
+    return res.status(201).json(normalizeOrder(order));
   } catch (err) {
-    console.error(err);
+    console.error("Erro ao criar pedido:", err);
     return res.status(500).json({ error: "Erro ao criar pedido" });
   }
 });
 
-/* ======================================================
-   PATCH /orders/:id/status
-====================================================== */
+/**
+ * ======================================================
+ * PATCH /orders/:id/status
+ * ======================================================
+ */
 router.patch("/:id/status", async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
     if (!id || !status) {
-      return res.status(400).json({ error: "id e status são obrigatórios" });
+      return res.status(400).json({ error: "Dados inválidos" });
     }
 
-    // 🔥 MAPA CORRETO FRONT → PRISMA
+    /**
+     * ✅ MAPA CORRETO (IGUAL AO PRISMA)
+     */
     const statusMap = {
       analysis: "NEW",
       preparing: "PREPARING",
-      delivering: "DELIVERY", // ✅ CORRETO
+      delivering: "OUT_FOR_DELIVERY",
       finished: "FINISHED",
+      canceled: "CANCELED",
     };
 
     const dbStatus = statusMap[status];
@@ -121,30 +137,40 @@ router.patch("/:id/status", async (req, res) => {
 
     const updated = await prisma.order.update({
       where: { id },
-      data: { status: dbStatus },
-      include: { customer: true, items: true },
+      data: {
+        status: dbStatus,
+        finalizedAt: dbStatus === "FINISHED" ? new Date() : null,
+      },
+      include: {
+        customer: true,
+        items: true,
+      },
     });
 
     return res.json(normalizeOrder(updated));
   } catch (err) {
-    console.error("PATCH STATUS ERROR:", err);
-    return res.status(500).json({ error: "Erro ao atualizar status do pedido" });
+    console.error("Erro ao atualizar status:", err);
+    return res.status(500).json({ error: "Erro ao atualizar status" });
   }
 });
 
-/* ======================================================
-   HELPERS
-====================================================== */
+/**
+ * ======================================================
+ * HELPERS
+ * ======================================================
+ */
 function mapStatus(status) {
   switch (status) {
     case "NEW":
       return "analysis";
     case "PREPARING":
       return "preparing";
-    case "DELIVERY":
+    case "OUT_FOR_DELIVERY":
       return "delivering";
     case "FINISHED":
       return "finished";
+    case "CANCELED":
+      return "canceled";
     default:
       return "analysis";
   }
