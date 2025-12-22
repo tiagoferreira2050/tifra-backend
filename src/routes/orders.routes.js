@@ -23,7 +23,11 @@ router.get("/", async (req, res) => {
         customer: true,
         items: {
           include: {
-            product: true, // 🔥 ESSENCIAL
+            product: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -97,7 +101,15 @@ router.post("/", async (req, res) => {
       },
       include: {
         customer: true,
-        items: true,
+        items: {
+          include: {
+            product: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -122,9 +134,6 @@ router.patch("/:id/status", async (req, res) => {
       return res.status(400).json({ error: "Dados inválidos" });
     }
 
-    /**
-     * ✅ MAPA CORRETO (IGUAL AO PRISMA)
-     */
     const statusMap = {
       analysis: "NEW",
       preparing: "PREPARING",
@@ -147,7 +156,15 @@ router.patch("/:id/status", async (req, res) => {
       },
       include: {
         customer: true,
-        items: true,
+        items: {
+          include: {
+            product: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -195,7 +212,7 @@ function normalizeOrder(order) {
     deliveryFee: Number(order.deliveryFee || 0),
     createdAt: order.createdAt,
 
-    // 🔥 AGORA OS ITENS VÊM COMPLETOS
+    // 🔥 ITENS COMPLETOS PARA O MODAL
     items: order.items.map((item) => {
       const complements = Array.isArray(item.complements)
         ? item.complements.map((c) => ({
@@ -212,9 +229,11 @@ function normalizeOrder(order) {
       const unitPrice = Number(item.unitPrice || 0);
 
       return {
-        qty: item.quantity,
-        name: item.product?.name || "Produto",
+        quantity: item.quantity,
         unitPrice,
+        product: {
+          name: item.product?.name || "Produto",
+        },
         complements,
         total:
           (unitPrice + complementsTotal) * item.quantity,
@@ -222,6 +241,5 @@ function normalizeOrder(order) {
     }),
   };
 }
-
 
 export default router;
