@@ -24,9 +24,7 @@ router.get("/", async (req, res) => {
         items: {
           include: {
             product: {
-              select: {
-                name: true,
-              },
+              select: { name: true },
             },
           },
         },
@@ -42,7 +40,7 @@ router.get("/", async (req, res) => {
 
 /**
  * ======================================================
- * POST /orders
+ * POST /orders  ✅ AQUI ESTAVA O PROBLEMA
  * ======================================================
  */
 router.post("/", async (req, res) => {
@@ -68,6 +66,9 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Total inválido" });
     }
 
+    // ===============================
+    // CLIENTE
+    // ===============================
     let customerRecord = null;
 
     if (customer?.phone) {
@@ -90,6 +91,9 @@ router.post("/", async (req, res) => {
       }
     }
 
+    // ===============================
+    // CRIA PEDIDO
+    // ===============================
     const order = await prisma.order.create({
       data: {
         storeId: String(storeId),
@@ -99,21 +103,49 @@ router.post("/", async (req, res) => {
         deliveryFee: Number(deliveryFee || 0),
         customerId: customerRecord?.id || null,
       },
+    });
+
+    // ===============================
+    // 🔥 CRIA ITENS DO PEDIDO (FIX FINAL)
+    // ===============================
+    for (const item of items) {
+      await prisma.orderItem.create({
+        data: {
+          orderId: order.id,
+          productId: item.productId,
+          quantity: Number(item.quantity || 1),
+          unitPrice: Number(item.unitPrice),
+
+          // 🔥 SALVA COMPLEMENTOS COM NOME REAL
+          complements: Array.isArray(item.complements)
+            ? item.complements.map((c) => ({
+                id: c.id || null,
+                name: c.name,              // ✅ Banana, Leite em pó, etc
+                price: Number(c.price || 0),
+              }))
+            : [],
+        },
+      });
+    }
+
+    // ===============================
+    // RETORNA PEDIDO COMPLETO
+    // ===============================
+    const fullOrder = await prisma.order.findUnique({
+      where: { id: order.id },
       include: {
         customer: true,
         items: {
           include: {
             product: {
-              select: {
-                name: true,
-              },
+              select: { name: true },
             },
           },
         },
       },
     });
 
-    return res.status(201).json(normalizeOrder(order));
+    return res.status(201).json(normalizeOrder(fullOrder));
   } catch (err) {
     console.error("Erro ao criar pedido:", err);
     return res.status(500).json({ error: "Erro ao criar pedido" });
@@ -159,9 +191,7 @@ router.patch("/:id/status", async (req, res) => {
         items: {
           include: {
             product: {
-              select: {
-                name: true,
-              },
+              select: { name: true },
             },
           },
         },
@@ -215,16 +245,11 @@ function normalizeOrder(order) {
     // 🔥 ITENS COMPLETOS PARA O MODAL
     items: order.items.map((item) => {
       const complements = Array.isArray(item.complements)
-  ? item.complements.map((c) => ({
-      name:
-        c.item?.name ||          // quando vier estruturado
-        c.name ||                // fallback direto
-        c.label ||               // fallback PDV
-        "Complemento",
-      price: Number(c.price || 0),
-    }))
-  : [];
-
+        ? item.complements.map((c) => ({
+            name: c.name,
+            price: Number(c.price || 0),
+          }))
+        : [];
 
       const complementsTotal = complements.reduce(
         (acc, c) => acc + c.price,
@@ -240,8 +265,7 @@ function normalizeOrder(order) {
           name: item.product?.name || "Produto",
         },
         complements,
-        total:
-          (unitPrice + complementsTotal) * item.quantity,
+        total: (unitPrice + complementsTotal) * item.quantity,
       };
     }),
   };
