@@ -257,16 +257,22 @@ async function normalizeOrder(order) {
     deliveryFee: Number(order.deliveryFee || 0),
     createdAt: order.createdAt,
 
+    // 🔥 ITENS COMPLETOS E CORRETOS
     items: order.items.map((item) => {
       const complements = Array.isArray(item.complements)
         ? item.complements.map((c) => ({
-            name: c.name || "Complemento",
+            name:
+              c.optionName ||        // ✅ NOME REAL (Banana, Coca-Cola, etc)
+              c.name ||              // fallback antigo
+              "Complemento",
+            groupTitle: c.groupTitle || null,
+            quantity: Number(c.qty || 1),
             price: Number(c.price || 0),
           }))
         : [];
 
       const complementsTotal = complements.reduce(
-        (acc, c) => acc + c.price,
+        (acc, c) => acc + c.price * c.quantity,
         0
       );
 
@@ -284,5 +290,3 @@ async function normalizeOrder(order) {
     }),
   };
 }
-
-export default router;
