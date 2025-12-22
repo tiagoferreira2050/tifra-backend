@@ -290,3 +290,5 @@ async function normalizeOrder(order) {
     }),
   };
 }
+
+export default router;
