@@ -262,12 +262,13 @@ async function normalizeOrder(order) {
       const complements = Array.isArray(item.complements)
         ? item.complements.map((c) => ({
             name:
-              c.optionName ||        // ✅ NOME REAL (Banana, Coca-Cola, etc)
-              c.name ||              // fallback antigo
-              "Complemento",
+               c.optionName ||     // ✅ pedidos novos
+    c.name ||           // fallback antigo
+    real?.name ||       // complemento cadastrado
+    "Complemento",
             groupTitle: c.groupTitle || null,
             quantity: Number(c.qty || 1),
-            price: Number(c.price || 0),
+              price: Number(c.price || real?.price || 0),
           }))
         : [];
 
