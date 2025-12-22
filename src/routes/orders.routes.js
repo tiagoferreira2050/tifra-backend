@@ -30,7 +30,7 @@ router.get("/", async (req, res) => {
       },
     });
 
-    const formatted = orders.map((order) => normalizeOrder(order));
+    const formatted = orders.map(normalizeOrder);
 
     return res.json(formatted);
   } catch (err) {
@@ -58,6 +58,9 @@ router.post("/", async (req, res) => {
       total,
     } = req.body;
 
+    // ===============================
+    // VALIDAÇÕES
+    // ===============================
     if (!storeId) {
       return res.status(400).json({ error: "storeId é obrigatório" });
     }
@@ -70,6 +73,9 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Total inválido" });
     }
 
+    // ===============================
+    // CLIENTE (CRIA OU REUTILIZA)
+    // ===============================
     let customerRecord = null;
 
     if (customer?.phone) {
@@ -92,6 +98,9 @@ router.post("/", async (req, res) => {
       }
     }
 
+    // ===============================
+    // CRIA PEDIDO
+    // ===============================
     const order = await prisma.order.create({
       data: {
         storeId: String(storeId),
@@ -103,6 +112,9 @@ router.post("/", async (req, res) => {
       },
     });
 
+    // ===============================
+    // ITENS DO PEDIDO
+    // ===============================
     for (const item of items) {
       await prisma.orderItem.create({
         data: {
@@ -115,6 +127,9 @@ router.post("/", async (req, res) => {
       });
     }
 
+    // ===============================
+    // BUSCA PEDIDO COMPLETO
+    // ===============================
     const fullOrder = await prisma.order.findUnique({
       where: { id: order.id },
       include: {
@@ -151,30 +166,21 @@ router.patch("/:id/status", async (req, res) => {
       return res.status(400).json({ error: "status é obrigatório" });
     }
 
-    const orderExists = await prisma.order.findUnique({
-      where: { id },
-    });
+    /**
+     * 🔥 MAPEAMENTO CORRETO FRONT → PRISMA
+     * (AQUI ESTAVA O BUG)
+     */
+    const statusMap = {
+      analysis: "NEW",
+      preparing: "PREPARING",
+      delivering: "DELIVERY", // ✅ ENUM REAL DO PRISMA
+      finished: "FINISHED",
+    };
 
-    if (!orderExists) {
-      return res.status(404).json({ error: "Pedido não encontrado" });
-    }
+    const dbStatus = statusMap[status];
 
-    let dbStatus;
-    switch (status) {
-      case "analysis":
-        dbStatus = "NEW";
-        break;
-      case "preparing":
-        dbStatus = "PREPARING";
-        break;
-      case "delivering":
-        dbStatus = "DELIVERING";
-        break;
-      case "finished":
-        dbStatus = "FINISHED";
-        break;
-      default:
-        return res.status(400).json({ error: "status inválido" });
+    if (!dbStatus) {
+      return res.status(400).json({ error: "status inválido" });
     }
 
     const updated = await prisma.order.update({
@@ -206,7 +212,7 @@ function mapStatus(status) {
       return "analysis";
     case "PREPARING":
       return "preparing";
-    case "DELIVERING":
+    case "DELIVERY":
       return "delivering";
     case "FINISHED":
       return "finished";
