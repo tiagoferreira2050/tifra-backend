@@ -49,16 +49,14 @@ router.get("/", async (req, res) => {
     return res.json(formatted);
   } catch (err) {
     console.error("Erro ao listar pedidos:", err);
-    return res.status(500).json({
-      error: "Erro ao listar pedidos",
-    });
+    return res.status(500).json({ error: "Erro ao listar pedidos" });
   }
 });
 
 /**
  * ======================================================
  * POST /orders
- * Cria pedido (PDV / Cardápio público)
+ * Cria pedido (PDV / Cardápio)
  * ======================================================
  */
 router.post("/", async (req, res) => {
@@ -72,9 +70,6 @@ router.post("/", async (req, res) => {
       total,
     } = req.body;
 
-    // ===============================
-    // VALIDAÇÕES
-    // ===============================
     if (!storeId) {
       return res.status(400).json({ error: "storeId é obrigatório" });
     }
@@ -88,7 +83,7 @@ router.post("/", async (req, res) => {
     }
 
     // ===============================
-    // CLIENTE (CRIA OU REUTILIZA)
+    // CLIENTE
     // ===============================
     let customerRecord = null;
 
@@ -127,7 +122,7 @@ router.post("/", async (req, res) => {
     });
 
     // ===============================
-    // ITENS DO PEDIDO
+    // ITENS
     // ===============================
     for (const item of items) {
       await prisma.orderItem.create({
@@ -141,9 +136,6 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // ===============================
-    // BUSCA PEDIDO COMPLETO
-    // ===============================
     const fullOrder = await prisma.order.findUnique({
       where: { id: order.id },
       include: {
@@ -152,9 +144,6 @@ router.post("/", async (req, res) => {
       },
     });
 
-    // ===============================
-    // RETORNO NORMALIZADO (IGUAL AO GET)
-    // ===============================
     return res.status(201).json({
       id: fullOrder.id,
       customer: fullOrder.customer?.name || "Cliente",
@@ -170,35 +159,11 @@ router.post("/", async (req, res) => {
       createdAt: fullOrder.createdAt,
       items: fullOrder.items || [],
     });
-
   } catch (err) {
     console.error("Erro ao criar pedido:", err);
-    return res.status(500).json({
-      error: "Erro interno ao criar pedido",
-    });
+    return res.status(500).json({ error: "Erro interno ao criar pedido" });
   }
 });
-
-/**
- * ======================================================
- * MAP STATUS (BACKEND → FRONT)
- * ======================================================
- */
-function mapStatus(status) {
-  switch (status) {
-    case "NEW":
-      return "analysis";
-    case "PREPARING":
-      return "preparing";
-    case "DELIVERING":
-      return "delivering";
-    case "FINISHED":
-      return "finished";
-    default:
-      return "analysis";
-  }
-}
-
 
 /**
  * ======================================================
@@ -219,23 +184,18 @@ router.patch("/:id/status", async (req, res) => {
       return res.status(400).json({ error: "status é obrigatório" });
     }
 
-    // Mapeia status do FRONT → BACK
-    let dbStatus;
-    switch (status) {
-      case "analysis":
-        dbStatus = "NEW";
-        break;
-      case "preparing":
-        dbStatus = "PREPARING";
-        break;
-      case "delivering":
-        dbStatus = "DELIVERING";
-        break;
-      case "finished":
-        dbStatus = "FINISHED";
-        break;
-      default:
-        return res.status(400).json({ error: "status inválido" });
+    // FRONT → BANCO
+    const statusMap = {
+      analysis: "NEW",
+      preparing: "PREPARING",
+      delivering: "DELIVERING",
+      finished: "FINISHED",
+    };
+
+    const dbStatus = statusMap[status];
+
+    if (!dbStatus) {
+      return res.status(400).json({ error: "status inválido" });
     }
 
     const updated = await prisma.order.update({
@@ -249,11 +209,28 @@ router.patch("/:id/status", async (req, res) => {
     });
   } catch (err) {
     console.error("Erro ao atualizar status do pedido:", err);
-    return res.status(500).json({
-      error: "Erro ao atualizar status do pedido",
-    });
+    return res.status(500).json({ error: "Erro ao atualizar status do pedido" });
   }
 });
 
+/**
+ * ======================================================
+ * MAP STATUS (BANCO → FRONT)
+ * ======================================================
+ */
+function mapStatus(status) {
+  switch (status) {
+    case "NEW":
+      return "analysis";
+    case "PREPARING":
+      return "preparing";
+    case "DELIVERING":
+      return "delivering";
+    case "FINISHED":
+      return "finished";
+    default:
+      return "analysis";
+  }
+}
 
 export default router;
