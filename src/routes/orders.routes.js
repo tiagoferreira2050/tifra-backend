@@ -69,8 +69,34 @@ router.get("/", async (req, res) => {
       return res.status(400).json({ error: "storeId é obrigatório" });
     }
 
+    // ======================================================
+    // 🔥 REGRA DAS 12 HORAS (APENAS PARA FINALIZADOS/CANCELADOS)
+    // ======================================================
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+
     const orders = await prisma.order.findMany({
-      where: { storeId: String(storeId) },
+      where: {
+        storeId: String(storeId),
+
+        OR: [
+          // 🔹 Pedidos ATIVOS (sempre aparecem)
+          {
+            status: {
+              in: ["NEW", "PREPARING", "OUT_FOR_DELIVERY"],
+            },
+          },
+
+          // 🔹 Pedidos FINALIZADOS ou CANCELADOS (até 12h)
+          {
+            status: {
+              in: ["FINISHED", "CANCELED"],
+            },
+            createdAt: {
+              gte: twelveHoursAgo,
+            },
+          },
+        ],
+      },
       orderBy: { createdAt: "desc" },
       include: {
         customer: true,
@@ -84,7 +110,7 @@ router.get("/", async (req, res) => {
       },
     });
 
-    // normalizeOrder é async
+    // 🔒 normalizeOrder é async (mantido)
     const formatted = await Promise.all(
       orders.map((order) => normalizeOrder(order))
     );
