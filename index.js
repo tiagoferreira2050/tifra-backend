@@ -58,7 +58,7 @@ app.get("/", (req, res) => {
 });
 
 /* ===================================================
-   ROTAS
+   ROTAS (SEM PREFIXO /api — MANTIDAS)
 =================================================== */
 
 // 🔐 auth
@@ -87,6 +87,37 @@ app.use("/products", productsRoutes);
 
 // 📤 upload
 app.use("/upload", uploadRoutes);
+
+/* ===================================================
+   🔥 ROTAS COM PREFIXO /api (ALIAS — NÃO QUEBRA NADA)
+=================================================== */
+
+// 🔐 auth
+app.use("/api/auth", authRoutes);
+
+// 📂 categories
+app.use("/api/categories", categoriesRoutes);
+
+// 🧩 complements
+app.use("/api/complements", complementsRoutes);
+
+// 🧩 complement items
+app.use("/api/complement-items", complementItemsRoutes);
+
+// 🧾 orders
+app.use("/api/orders", ordersRoutes);
+
+// 🏪 stores  ✅ AQUI ESTÁ A CHAVE DO SEU BUG
+app.use("/api/store", storesRoutes);
+
+// 👤 user
+app.use("/api/user", userRoutes);
+
+// 🛒 products
+app.use("/api/products", productsRoutes);
+
+// 📤 upload
+app.use("/api/upload", uploadRoutes);
 
 /* ===================================================
    START SERVER (Railway)
