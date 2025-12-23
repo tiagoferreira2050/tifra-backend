@@ -34,6 +34,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+/* 🔥🔥🔥 FIX DEFINITIVO DO PATCH (PRE-FLIGHT OPTIONS) 🔥🔥🔥 */
+app.options("*", cors(corsOptions));
+
 /* ===================================================
    🔥 MIDDLEWARES (ORDEM IMPORTA)
 =================================================== */
@@ -70,7 +73,7 @@ app.use("/complements", complementsRoutes);
 // 🧩 complement items (ITENS)
 app.use("/complement-items", complementItemsRoutes);
 
-// 🧾 orders (🔥 STATUS FUNCIONA ATÉ FINALIZAR)
+// 🧾 orders
 app.use("/orders", ordersRoutes);
 
 // 🏪 stores
