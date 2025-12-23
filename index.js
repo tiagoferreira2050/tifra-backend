@@ -34,8 +34,8 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-/* 🔥🔥🔥 FIX DEFINITIVO DO PATCH (PRE-FLIGHT OPTIONS) 🔥🔥🔥 */
-app.options("*", cors(corsOptions));
+/* 🔥🔥🔥 FIX DEFINITIVO DO CORS (PATCH / OPTIONS) 🔥🔥🔥 */
+app.options(/.*/, cors(corsOptions));
 
 /* ===================================================
    🔥 MIDDLEWARES (ORDEM IMPORTA)
@@ -47,7 +47,7 @@ app.use(cookieParser());
 // 🔥 JSON — OBRIGATÓRIO ANTES DAS ROTAS
 app.use(express.json({ limit: "10mb" }));
 
-// 🔥 URLENCODED — PATCH SAFE (Railway fix)
+// 🔥 URLENCODED — PATCH SAFE
 app.use(express.urlencoded({ extended: true }));
 
 /* ===================================================
