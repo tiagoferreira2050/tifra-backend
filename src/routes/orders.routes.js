@@ -1,6 +1,40 @@
 import { Router } from "express";
 import { prisma } from "../prisma/client.js";
 
+
+
+async function generateOrderCode(storeId) {
+  const lastOrder = await prisma.order.findFirst({
+    where: {
+      storeId,
+      orderCode: {
+        startsWith: "P",
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: {
+      orderCode: true,
+    },
+  });
+
+  if (!lastOrder?.orderCode) {
+    return "P0001";
+  }
+
+  const lastNumber = parseInt(
+    lastOrder.orderCode.replace("P", ""),
+    10
+  );
+
+  const nextNumber = lastNumber + 1;
+
+  return `P${String(nextNumber).padStart(4, "0")}`;
+}
+
+
+
 const router = Router();
 
 // 🔥 CORS FIX (AQUI)
@@ -118,16 +152,20 @@ router.post("/", async (req, res) => {
     // ===============================
     // CRIA PEDIDO
     // ===============================
-    const order = await prisma.order.create({
-      data: {
-        storeId: String(storeId),
-        status: "NEW",
-        total: Number(total),
-        paymentMethod: paymentMethod || null,
-        deliveryFee: Number(deliveryFee || 0),
-        customerId: customerRecord?.id || null,
-      },
-    });
+    const orderCode = await generateOrderCode(String(storeId));
+
+const order = await prisma.order.create({
+  data: {
+    storeId: String(storeId),
+    orderCode, // 🔥 AQUI
+    status: "NEW",
+    total: Number(total),
+    paymentMethod: paymentMethod || null,
+    deliveryFee: Number(deliveryFee || 0),
+    customerId: customerRecord?.id || null,
+  },
+});
+
 
     // ===============================
     // CRIA ITENS DO PEDIDO
@@ -276,6 +314,7 @@ function mapStatus(status) {
 async function normalizeOrder(order) {
   return {
     id: order.id,
+    orderCode: order.orderCode,
     customer: order.customer?.name || "Cliente",
     phone: order.customer?.phone || null,
     address: order.customer?.address || null,

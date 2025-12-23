@@ -159,6 +159,9 @@ model Order {
   id        String @id @default(uuid())
   storeId   String
 
+  /// 🔢 Código visual do pedido (P0001, P0002 ou nº iFood)
+  orderCode String? @unique
+
   status OrderStatus @default(NEW)
 
   total         Float  @default(0)
@@ -168,7 +171,7 @@ model Order {
   createdAt  DateTime @default(now())
   finalizedAt DateTime?
 
-  // 🔴 CAMPOS DE CANCELAMENTO (NOVOS – NÃO QUEBRAM NADA)
+  // 🔴 CAMPOS DE CANCELAMENTO
   canceledAt   DateTime?
   cancelReason String?
   canceledBy   String? // STORE | CUSTOMER | SYSTEM
