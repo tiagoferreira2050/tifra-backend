@@ -29,7 +29,11 @@ const corsOptions = {
   ],
   credentials: true,
   methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "x-user-id", // ✅ FIX DEFINITIVO
+  ],
 };
 
 app.use(cors(corsOptions));
@@ -107,7 +111,7 @@ app.use("/api/complement-items", complementItemsRoutes);
 // 🧾 orders
 app.use("/api/orders", ordersRoutes);
 
-// 🏪 stores  ✅ AQUI ESTÁ A CHAVE DO SEU BUG
+// 🏪 stores
 app.use("/api/store", storesRoutes);
 
 // 👤 user
