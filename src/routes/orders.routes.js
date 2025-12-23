@@ -1,11 +1,10 @@
 import { Router } from "express";
 import { prisma } from "../prisma/client.js";
 
-
 const router = Router();
 
-// 🔥 CORS PRE-FLIGHT FIX (PATCH / OPTIONS)
-router.options(/.*/, (req, res) => {
+// 🔥 CORS FIX (AQUI)
+router.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
   res.header(
     "Access-Control-Allow-Methods",
@@ -15,9 +14,13 @@ router.options(/.*/, (req, res) => {
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization"
   );
-  res.sendStatus(204);
-});
 
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 
 /**
  * ======================================================
