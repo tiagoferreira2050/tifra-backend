@@ -28,7 +28,6 @@ router.post("/", async (req, res) => {
     });
 
     res.json(store);
-
   } catch (err) {
     console.error("API ERROR (POST /stores):", err);
     res.status(500).json({ error: err.message });
@@ -37,18 +36,9 @@ router.post("/", async (req, res) => {
 
 /* ===================================================
    GET /stores/me
-   👉 USADO PELO FRONT (/api/store/me)
 =================================================== */
 router.get("/me", async (req, res) => {
   try {
-    /**
-     * 🔴 IMPORTANTE
-     * Aqui estou assumindo que você já injeta o userId
-     * (via token, middleware, header, etc).
-     * 
-     * Se hoje você passa userId via header, funciona.
-     * Se depois colocar auth middleware, continua funcionando.
-     */
     const userId =
       req.user?.id ||
       req.headers["x-user-id"];
@@ -75,7 +65,6 @@ router.get("/me", async (req, res) => {
     }
 
     return res.json(store);
-
   } catch (err) {
     console.error("GET /stores/me error:", err);
     return res.status(500).json({ error: "Erro interno" });
@@ -84,7 +73,6 @@ router.get("/me", async (req, res) => {
 
 /* ===================================================
    POST /stores/update-subdomain
-   👉 MANTIDA (NÃO QUEBRA NADA)
 =================================================== */
 router.post("/update-subdomain", async (req, res) => {
   try {
@@ -96,7 +84,6 @@ router.post("/update-subdomain", async (req, res) => {
       });
     }
 
-    // 🔥 MESMO PADRÃO DO /stores/me
     const userId =
       req.user?.id ||
       req.headers["x-user-id"];
@@ -140,17 +127,14 @@ router.post("/update-subdomain", async (req, res) => {
       message: "Subdomínio atualizado!",
       store: updated,
     });
-
   } catch (err) {
     console.error("POST /stores/update-subdomain error:", err);
     return res.status(500).json({ error: "Erro interno" });
   }
 });
 
-
 /* ===================================================
    GET /stores/by-user/:userId
-   👉 MANTIDA (NÃO QUEBRA NADA)
 =================================================== */
 router.get("/by-user/:userId", async (req, res) => {
   try {
@@ -167,11 +151,64 @@ router.get("/by-user/:userId", async (req, res) => {
     }
 
     return res.json(store);
-
   } catch (err) {
     console.error("GET /stores/by-user/:userId error:", err);
     return res.status(500).json({ error: "Erro interno" });
   }
 });
+
+
+/* ===================================================
+   GET /stores/by-subdomain/:subdomain
+   👉 USADO PELO CARDÁPIO PÚBLICO
+=================================================== */
+router.get("/by-subdomain/:subdomain", async (req, res) => {
+  try {
+    const { subdomain } = req.params;
+
+    if (!subdomain) {
+      return res.status(400).json({
+        error: "Subdomínio é obrigatório",
+      });
+    }
+
+    const store = await prisma.store.findUnique({
+      where: { subdomain },
+      include: {
+        categories: {
+          where: { active: true },
+          orderBy: { order: "asc" },
+          include: {
+            products: {
+              where: { active: true },
+              orderBy: { order: "asc" },
+            },
+          },
+        },
+      },
+    });
+
+    if (!store) {
+      return res.status(404).json({
+        error: "Loja não encontrada",
+      });
+    }
+
+    return res.json({
+      store: {
+        id: store.id,
+        name: store.name,
+        subdomain: store.subdomain,
+        logoUrl: store.logoUrl,
+      },
+      categories: store.categories,
+    });
+
+  } catch (err) {
+    console.error("GET /stores/by-subdomain error:", err);
+    return res.status(500).json({ error: "Erro interno" });
+  }
+});
+
 
 export default router;
