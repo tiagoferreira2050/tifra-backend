@@ -88,18 +88,39 @@ router.get("/me", async (req, res) => {
 =================================================== */
 router.post("/update-subdomain", async (req, res) => {
   try {
-    const { storeId, subdomain } = req.body;
+    const { subdomain } = req.body;
 
-    if (!storeId || !subdomain) {
+    if (!subdomain) {
       return res.status(400).json({
-        error: "storeId e subdomain são obrigatórios",
+        error: "subdomain é obrigatório",
+      });
+    }
+
+    // 🔥 MESMO PADRÃO DO /stores/me
+    const userId =
+      req.user?.id ||
+      req.headers["x-user-id"];
+
+    if (!userId) {
+      return res.status(401).json({
+        error: "Usuário não autenticado",
+      });
+    }
+
+    const store = await prisma.store.findFirst({
+      where: { userId },
+    });
+
+    if (!store) {
+      return res.status(404).json({
+        error: "Store não encontrada",
       });
     }
 
     const exists = await prisma.store.findFirst({
       where: {
         subdomain,
-        NOT: { id: storeId },
+        NOT: { id: store.id },
       },
     });
 
@@ -110,11 +131,11 @@ router.post("/update-subdomain", async (req, res) => {
     }
 
     const updated = await prisma.store.update({
-      where: { id: storeId },
+      where: { id: store.id },
       data: { subdomain },
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: "Subdomínio atualizado!",
       store: updated,
@@ -122,9 +143,10 @@ router.post("/update-subdomain", async (req, res) => {
 
   } catch (err) {
     console.error("POST /stores/update-subdomain error:", err);
-    res.status(500).json({ error: "Erro interno" });
+    return res.status(500).json({ error: "Erro interno" });
   }
 });
+
 
 /* ===================================================
    GET /stores/by-user/:userId
