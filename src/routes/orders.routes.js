@@ -168,7 +168,7 @@ router.post("/", async (req, res) => {
 router.patch("/:id/status", async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, reason, canceledBy } = req.body;
 
     if (!id || !status) {
       return res.status(400).json({ error: "Dados inválidos" });
@@ -192,7 +192,16 @@ router.patch("/:id/status", async (req, res) => {
       where: { id },
       data: {
         status: dbStatus,
+
+        // ✔ FINALIZAÇÃO NORMAL
         finalizedAt: dbStatus === "FINISHED" ? new Date() : null,
+
+        // 🔴 CANCELAMENTO (NOVO)
+        canceledAt: dbStatus === "CANCELED" ? new Date() : null,
+        cancelReason:
+          dbStatus === "CANCELED" ? reason || "Não informado" : null,
+        canceledBy:
+          dbStatus === "CANCELED" ? canceledBy || "STORE" : null,
       },
       include: {
         customer: true,
@@ -214,6 +223,7 @@ router.patch("/:id/status", async (req, res) => {
     return res.status(500).json({ error: "Erro ao atualizar status" });
   }
 });
+
 
 /**
  * ======================================================

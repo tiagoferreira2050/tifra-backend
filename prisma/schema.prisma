@@ -7,7 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 enum OrderStatus {
   NEW
   PREPARING
@@ -15,7 +14,6 @@ enum OrderStatus {
   FINISHED
   CANCELED
 }
-
 
 model Store {
   id         String     @id @default(uuid())
@@ -88,7 +86,6 @@ model Product {
   @@index([storeId])
 }
 
-
 model ComplementGroup {
   id          String   @id @default(uuid())
   name        String
@@ -141,7 +138,6 @@ model ProductComplement {
   @@index([groupId])
 }
 
-
 model Customer {
   id        String   @id @default(uuid())
   storeId   String
@@ -159,7 +155,6 @@ model Customer {
   @@index([phone])
 }
 
-
 model Order {
   id        String @id @default(uuid())
   storeId   String
@@ -172,6 +167,11 @@ model Order {
 
   createdAt  DateTime @default(now())
   finalizedAt DateTime?
+
+  // 🔴 CAMPOS DE CANCELAMENTO (NOVOS – NÃO QUEBRAM NADA)
+  canceledAt   DateTime?
+  cancelReason String?
+  canceledBy   String? // STORE | CUSTOMER | SYSTEM
 
   customerId String?
   customer   Customer? @relation(fields: [customerId], references: [id])
