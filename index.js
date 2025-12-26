@@ -13,6 +13,8 @@ import storesRoutes from "./src/routes/stores.routes.js";
 import userRoutes from "./src/routes/user.routes.js";
 import productsRoutes from "./src/routes/products.routes.js";
 import uploadRoutes from "./src/routes/upload.routes.js";
+import storeSettingsPublic from "./src/routes/storeSettingsPublic.js";
+import storeSettingsAdmin from "./src/routes/storeSettingsAdmin.js";
 
 dotenv.config();
 
@@ -123,10 +125,18 @@ app.use("/api/products", productsRoutes);
 // 📤 upload
 app.use("/api/upload", uploadRoutes);
 
+
+// 📋 store settings - public
+
+app.use(storeSettingsPublic);
+app.use(storeSettingsAdmin);
+
+
 /* ===================================================
    START SERVER (Railway)
 =================================================== */
 const port = process.env.PORT || 3001;
+
 
 app.listen(port, "0.0.0.0", () => {
   console.log(`🔥 Servidor rodando na porta ${port}`);

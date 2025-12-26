@@ -30,6 +30,9 @@ model Store {
   orders     Order[]
   customers  Customer[]
 
+  // 🔹 RELAÇÃO 1:1 COM CONFIGURAÇÕES
+  settings StoreSettings?
+
   user User @relation(fields: [userId], references: [id])
 
   @@index([subdomain])
@@ -168,7 +171,7 @@ model Order {
   paymentMethod String?
   deliveryFee   Float? @default(0)
 
-  createdAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
   finalizedAt DateTime?
 
   // 🔴 CAMPOS DE CANCELAMENTO
@@ -205,4 +208,26 @@ model OrderItem {
 
   @@index([orderId])
   @@index([productId])
+}
+
+model StoreSettings {
+  id String @id @default(uuid())
+
+  storeId String @unique
+
+  isOpen Boolean @default(true)
+
+  openTime  String
+  closeTime String
+
+  deliveryFee   Float @default(0)
+  minOrderValue Float @default(0)
+
+  estimatedTime String @default("30-45 min")
+  whatsapp      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id])
 }
