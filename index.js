@@ -4,6 +4,9 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import { PrismaClient } from "@prisma/client";
 
+/* =========================
+   ROTAS
+========================= */
 import authRoutes from "./src/routes/auth/index.js";
 import categoriesRoutes from "./src/routes/categories.routes.js";
 import complementsRoutes from "./src/routes/complements.routes.js";
@@ -13,6 +16,11 @@ import storesRoutes from "./src/routes/stores.routes.js";
 import userRoutes from "./src/routes/user.routes.js";
 import productsRoutes from "./src/routes/products.routes.js";
 import uploadRoutes from "./src/routes/upload.routes.js";
+
+// 🔥 STORE SETTINGS (NOVA)
+import storeSettingsRoutes from "./src/routes/storeSettings.routes.js";
+
+// (mantidos, não removi nada)
 import storeSettingsPublic from "./src/routes/storeSettingsPublic.js";
 import storeSettingsAdmin from "./src/routes/storeSettingsAdmin.js";
 
@@ -22,7 +30,7 @@ const prisma = new PrismaClient();
 const app = express();
 
 /* ===================================================
-   🔥 CORS GLOBAL — COMPATÍVEL COM NODE 20 / EXPRESS ATUAL
+   🔥 CORS GLOBAL — NODE 20 SAFE
 =================================================== */
 const corsOptions = {
   origin: (origin, callback) => {
@@ -45,7 +53,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 /* ===================================================
-   🔥 PREFLIGHT GLOBAL (SEM USAR "*")
+   🔥 PREFLIGHT GLOBAL (SEM "*")
 =================================================== */
 app.use((req, res, next) => {
   if (req.method === "OPTIONS") {
@@ -57,7 +65,6 @@ app.use((req, res, next) => {
 /* ===================================================
    🔥 MIDDLEWARES
 =================================================== */
-
 app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
@@ -72,7 +79,6 @@ app.get("/", (req, res) => {
 /* ===================================================
    ROTAS (SEM PREFIXO /api)
 =================================================== */
-
 app.use("/auth", authRoutes);
 app.use("/categories", categoriesRoutes);
 app.use("/complements", complementsRoutes);
@@ -86,7 +92,6 @@ app.use("/upload", uploadRoutes);
 /* ===================================================
    ROTAS COM PREFIXO /api (ALIAS)
 =================================================== */
-
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoriesRoutes);
 app.use("/api/complements", complementsRoutes);
@@ -98,16 +103,20 @@ app.use("/api/products", productsRoutes);
 app.use("/api/upload", uploadRoutes);
 
 /* ===================================================
-   STORE SETTINGS
+   🔥 STORE SETTINGS (NOVA — ESSENCIAL)
+   NÃO USA PREFIXO /api
 =================================================== */
+app.use(storeSettingsRoutes);
 
+/* ===================================================
+   STORE SETTINGS ANTIGAS (MANTIDAS)
+=================================================== */
 app.use(storeSettingsPublic);
 app.use(storeSettingsAdmin);
 
 /* ===================================================
    START SERVER
 =================================================== */
-
 const port = process.env.PORT || 3001;
 
 app.listen(port, "0.0.0.0", () => {
