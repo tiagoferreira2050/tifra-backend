@@ -211,4 +211,37 @@ router.get("/by-subdomain/:subdomain", async (req, res) => {
 });
 
 
+/* ===================================================
+   PUT /stores/:id
+   👉 ATUALIZAR DADOS DA LOJA (MINHA LOJA)
+=================================================== */
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, logoUrl, coverImage } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        error: "ID da store é obrigatório",
+      });
+    }
+
+    const store = await prisma.store.update({
+      where: { id },
+      data: {
+        name,
+        description,
+        logoUrl,
+        coverImage,
+      },
+    });
+
+    return res.json(store);
+  } catch (err) {
+    console.error("PUT /stores/:id error:", err);
+    return res.status(500).json({ error: "Erro ao atualizar loja" });
+  }
+});
+
+
 export default router;

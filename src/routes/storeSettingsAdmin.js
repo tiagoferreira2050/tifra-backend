@@ -10,6 +10,7 @@ const router = Router();
 router.put("/store/:storeId/settings", async (req, res) => {
   try {
     const { storeId } = req.params;
+
     const {
       isOpen,
       openTime,
@@ -20,6 +21,9 @@ router.put("/store/:storeId/settings", async (req, res) => {
       whatsapp,
     } = req.body;
 
+    // ===============================
+    // VALIDA STORE
+    // ===============================
     const store = await prisma.store.findUnique({
       where: { id: storeId },
     });
@@ -28,17 +32,22 @@ router.put("/store/:storeId/settings", async (req, res) => {
       return res.status(404).json({ error: "Loja não encontrada" });
     }
 
+    // ===============================
+    // UPSERT SETTINGS (SAFE UPDATE)
+    // ===============================
     const settings = await prisma.storeSettings.upsert({
       where: { storeId },
+
       update: {
-        isOpen,
-        openTime,
-        closeTime,
-        deliveryFee,
-        minOrderValue,
-        estimatedTime,
-        whatsapp,
+        ...(isOpen !== undefined && { isOpen }),
+        ...(openTime && { openTime }),
+        ...(closeTime && { closeTime }),
+        ...(deliveryFee !== undefined && { deliveryFee }),
+        ...(minOrderValue !== undefined && { minOrderValue }),
+        ...(estimatedTime && { estimatedTime }),
+        ...(whatsapp && { whatsapp: whatsapp.trim() }),
       },
+
       create: {
         storeId,
         isOpen: isOpen ?? true,
@@ -47,7 +56,7 @@ router.put("/store/:storeId/settings", async (req, res) => {
         deliveryFee: deliveryFee ?? 0,
         minOrderValue: minOrderValue ?? 0,
         estimatedTime: estimatedTime ?? "30-45 min",
-        whatsapp,
+        whatsapp: whatsapp?.trim() || null,
       },
     });
 
