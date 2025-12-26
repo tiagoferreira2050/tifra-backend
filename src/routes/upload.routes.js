@@ -5,20 +5,24 @@ import FormData from "form-data";
 
 const router = Router();
 
-// multer em memória
+// ===============================
+// MULTER EM MEMÓRIA
+// ===============================
 const upload = multer({
   storage: multer.memoryStorage(),
 });
 
-/* ===================================================
-   POST /upload
-=================================================== */
+// ===================================================
+// POST /api/upload
+// ===================================================
 router.post("/", upload.single("file"), async (req, res) => {
   try {
     const file = req.file;
 
     if (!file) {
-      return res.status(400).json({ error: "Nenhum arquivo enviado" });
+      return res.status(400).json({
+        error: "Nenhum arquivo enviado",
+      });
     }
 
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
@@ -37,7 +41,11 @@ router.post("/", upload.single("file"), async (req, res) => {
       filename: file.originalname,
       contentType: file.mimetype,
     });
+
     formData.append("upload_preset", preset);
+
+    // 🔥 OPCIONAL (não quebra nada se remover depois)
+    formData.append("folder", "tifra/stores");
 
     const uploadResponse = await fetch(uploadUrl, {
       method: "POST",
@@ -54,10 +62,11 @@ router.post("/", upload.single("file"), async (req, res) => {
       });
     }
 
+    // 🔥 RETORNO PADRÃO (URL LIMPA)
     return res.json({
       url: json.secure_url,
+      publicId: json.public_id,
     });
-
   } catch (err) {
     console.error("Erro no /upload:", err);
     return res.status(500).json({
