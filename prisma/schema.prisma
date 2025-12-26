@@ -16,14 +16,15 @@ enum OrderStatus {
 }
 
 model Store {
-  id         String     @id @default(uuid())
-  userId     String
-  name       String
-  subdomain  String     @unique
-  address    String?
-  logoUrl    String?
-  coverImage String?
-  createdAt  DateTime   @default(now())
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  description String?      // ✅ ADICIONADO (Minha Loja / Cardápio Público)
+  subdomain   String   @unique
+  address     String?
+  logoUrl     String?
+  coverImage  String?
+  createdAt   DateTime @default(now())
 
   categories Category[]
   products   Product[]
@@ -49,12 +50,12 @@ model User {
 }
 
 model Category {
-  id        String    @id @default(uuid())
+  id        String   @id @default(uuid())
   storeId   String
   name      String
-  createdAt DateTime  @default(now())
-  active    Boolean   @default(true)
-  order     Int       @default(0)
+  createdAt DateTime @default(now())
+  active    Boolean  @default(true)
+  order     Int      @default(0)
 
   store    Store     @relation(fields: [storeId], references: [id])
   products Product[]
