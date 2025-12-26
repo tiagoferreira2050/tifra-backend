@@ -20,12 +20,25 @@ router.post("/", async (req, res) => {
     const subdomain = generateSubdomain(name);
 
     const store = await prisma.store.create({
-      data: {
-        name,
-        userId,
-        subdomain,
+  data: {
+    name,
+    userId,
+    subdomain,
+
+    settings: {
+      create: {
+        isOpen: true,
+        openTime: "13:00",
+        closeTime: "22:00",
+        deliveryFee: 0,
+        minOrderValue: 0,
+        estimatedTime: "30-45 min",
+        whatsapp: null,
       },
-    });
+    },
+  },
+});
+
 
     res.json(store);
   } catch (err) {
