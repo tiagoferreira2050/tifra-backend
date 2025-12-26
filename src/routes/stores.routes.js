@@ -56,7 +56,9 @@ router.post("/", async (req, res) => {
 =================================================== */
 router.get("/me", async (req, res) => {
   try {
-    const userId = req.user?.id || req.headers["x-user-id"];
+    const userId =
+      req.user?.id ||
+      req.headers["x-user-id"];
 
     if (!userId) {
       return res.status(401).json({
@@ -69,6 +71,9 @@ router.get("/me", async (req, res) => {
       select: {
         id: true,
         name: true,
+        description: true,
+        logoUrl: true,
+        coverImage: true,
         subdomain: true,
       },
     });
@@ -144,8 +149,12 @@ router.get("/by-user/:userId", async (req, res) => {
     const { userId } = req.params;
 
     const store = await prisma.store.findFirst({
-      where: { userId },
-    });
+  where: { userId },
+  include: {
+    settings: true,
+  },
+});
+
 
     if (!store) {
       return res.status(404).json({
