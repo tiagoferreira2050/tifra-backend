@@ -10,17 +10,14 @@ const router = Router();
 =================================================== */
 router.get("/api/store/settings", async (req, res) => {
   try {
-    const userId = req.user?.id || req.headers["x-user-id"];
+    const userId =
+      req.user?.id ||
+      req.headers["x-user-id"];
 
     if (!userId) {
-      return res.status(401).json({
-        error: "Usuário não autenticado",
-      });
+      return res.status(401).json({ error: "Usuário não autenticado" });
     }
 
-    // ===============================
-    // BUSCA STORE + SETTINGS
-    // ===============================
     const store = await prisma.store.findFirst({
       where: { userId },
       include: {
@@ -29,14 +26,9 @@ router.get("/api/store/settings", async (req, res) => {
     });
 
     if (!store) {
-      return res.status(404).json({
-        error: "Loja não encontrada",
-      });
+      return res.status(404).json({ error: "Loja não encontrada" });
     }
 
-    // ===============================
-    // CRIA SETTINGS SE NÃO EXISTIR
-    // ===============================
     let settings = store.settings;
 
     if (!settings) {
@@ -66,10 +58,8 @@ router.get("/api/store/settings", async (req, res) => {
       settings,
     });
   } catch (error) {
-    console.error("GET /api/store/settings error:", error);
-    return res.status(500).json({
-      error: "Erro interno",
-    });
+    console.error("Erro ao carregar StoreSettings:", error);
+    return res.status(500).json({ error: "Erro interno" });
   }
 });
 
@@ -79,12 +69,12 @@ router.get("/api/store/settings", async (req, res) => {
 =================================================== */
 router.put("/api/store/settings", async (req, res) => {
   try {
-    const userId = req.user?.id || req.headers["x-user-id"];
+    const userId =
+      req.user?.id ||
+      req.headers["x-user-id"];
 
     if (!userId) {
-      return res.status(401).json({
-        error: "Usuário não autenticado",
-      });
+      return res.status(401).json({ error: "Usuário não autenticado" });
     }
 
     const {
@@ -102,36 +92,25 @@ router.put("/api/store/settings", async (req, res) => {
       whatsapp,
     } = req.body;
 
-    // ===============================
-    // BUSCA STORE
-    // ===============================
     const store = await prisma.store.findFirst({
       where: { userId },
     });
 
     if (!store) {
-      return res.status(404).json({
-        error: "Loja não encontrada",
-      });
+      return res.status(404).json({ error: "Loja não encontrada" });
     }
 
-    // ===============================
-    // ATUALIZA STORE
-    // ===============================
     await prisma.store.update({
       where: { id: store.id },
       data: {
         name: name?.trim(),
         description: description?.trim(),
-        logoUrl: logoUrl ?? null,
-        coverImage: coverImage ?? null,
-        address: address ?? null,
+        logoUrl,
+        coverImage,
+        address,
       },
     });
 
-    // ===============================
-    // UPSERT SETTINGS
-    // ===============================
     const settings = await prisma.storeSettings.upsert({
       where: { storeId: store.id },
       update: {
@@ -163,10 +142,8 @@ router.put("/api/store/settings", async (req, res) => {
       settings,
     });
   } catch (error) {
-    console.error("PUT /api/store/settings error:", error);
-    return res.status(500).json({
-      error: "Erro interno",
-    });
+    console.error("Erro ao salvar StoreSettings:", error);
+    return res.status(500).json({ error: "Erro interno" });
   }
 });
 
