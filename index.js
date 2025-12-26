@@ -22,26 +22,28 @@ const prisma = new PrismaClient();
 const app = express();
 
 /* ===================================================
-   🔥 CORS GLOBAL — ESTÁVEL (Railway + Front)
+   🔥 CORS GLOBAL — FIX DEFINITIVO (Railway + Front)
+   ⚠️ TEM QUE VIR ANTES DE QUALQUER ROTA
 =================================================== */
 const corsOptions = {
   origin: [
     "https://app.tifra.com.br",
+    "https://tifra.com.br",
     "http://localhost:3000",
   ],
   credentials: true,
-  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: [
     "Content-Type",
     "Authorization",
-    "x-user-id", // ✅ FIX DEFINITIVO
+    "x-user-id",
   ],
 };
 
 app.use(cors(corsOptions));
 
-/* 🔥🔥🔥 FIX DEFINITIVO DO CORS (PATCH / OPTIONS) 🔥🔥🔥 */
-app.options(/.*/, cors(corsOptions));
+/* 🔥🔥🔥 PREFLIGHT GLOBAL (ESSENCIAL PARA PUT/PATCH) 🔥🔥🔥 */
+app.options("*", cors(corsOptions));
 
 /* ===================================================
    🔥 MIDDLEWARES (ORDEM IMPORTA)
@@ -53,7 +55,7 @@ app.use(cookieParser());
 // 🔥 JSON — OBRIGATÓRIO ANTES DAS ROTAS
 app.use(express.json({ limit: "10mb" }));
 
-// 🔥 URLENCODED — PATCH SAFE
+// 🔥 URLENCODED
 app.use(express.urlencoded({ extended: true }));
 
 /* ===================================================
@@ -125,18 +127,17 @@ app.use("/api/products", productsRoutes);
 // 📤 upload
 app.use("/api/upload", uploadRoutes);
 
-
-// 📋 store settings - public
+/* ===================================================
+   📋 STORE SETTINGS (PUBLIC + ADMIN)
+=================================================== */
 
 app.use(storeSettingsPublic);
 app.use(storeSettingsAdmin);
-
 
 /* ===================================================
    START SERVER (Railway)
 =================================================== */
 const port = process.env.PORT || 3001;
-
 
 app.listen(port, "0.0.0.0", () => {
   console.log(`🔥 Servidor rodando na porta ${port}`);
