@@ -23,14 +23,20 @@ const app = express();
 
 /* ===================================================
    🔥 CORS GLOBAL — FIX DEFINITIVO (Railway + Front)
-   ⚠️ TEM QUE VIR ANTES DE QUALQUER ROTA
 =================================================== */
 const corsOptions = {
-  origin: [
-    "https://app.tifra.com.br",
-    "https://tifra.com.br",
-    "http://localhost:3000",
-  ],
+  origin: (origin, callback) => {
+    if (
+      !origin ||
+      origin.includes("tifra.com.br") ||
+      origin.includes("localhost") ||
+      origin.includes("railway.app")
+    ) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: [
@@ -41,8 +47,6 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-
-/* 🔥🔥🔥 PREFLIGHT GLOBAL (ESSENCIAL PARA PUT/PATCH) 🔥🔥🔥 */
 app.options("*", cors(corsOptions));
 
 /* ===================================================
