@@ -4,22 +4,22 @@ import { prisma } from "../lib/prisma.js";
 const router = Router();
 
 /* ===================================================
-   GET /store/settings
+   GET /api/store/settings
    👉 Carrega dados da página "Minha Loja"
    👉 Cria StoreSettings se não existir
 =================================================== */
-router.get("/store/settings", async (req, res) => {
+router.get("/api/store/settings", async (req, res) => {
   try {
-    const userId =
-      req.user?.id ||
-      req.headers["x-user-id"];
+    const userId = req.user?.id || req.headers["x-user-id"];
 
     if (!userId) {
-      return res.status(401).json({ error: "Usuário não autenticado" });
+      return res.status(401).json({
+        error: "Usuário não autenticado",
+      });
     }
 
     // ===============================
-    // BUSCA STORE
+    // BUSCA STORE + SETTINGS
     // ===============================
     const store = await prisma.store.findFirst({
       where: { userId },
@@ -29,7 +29,9 @@ router.get("/store/settings", async (req, res) => {
     });
 
     if (!store) {
-      return res.status(404).json({ error: "Loja não encontrada" });
+      return res.status(404).json({
+        error: "Loja não encontrada",
+      });
     }
 
     // ===============================
@@ -64,23 +66,25 @@ router.get("/store/settings", async (req, res) => {
       settings,
     });
   } catch (error) {
-    console.error("Erro ao carregar StoreSettings:", error);
-    return res.status(500).json({ error: "Erro interno" });
+    console.error("GET /api/store/settings error:", error);
+    return res.status(500).json({
+      error: "Erro interno",
+    });
   }
 });
 
 /* ===================================================
-   PUT /store/settings
+   PUT /api/store/settings
    👉 Salva dados da página "Minha Loja"
 =================================================== */
-router.put("/store/settings", async (req, res) => {
+router.put("/api/store/settings", async (req, res) => {
   try {
-    const userId =
-      req.user?.id ||
-      req.headers["x-user-id"];
+    const userId = req.user?.id || req.headers["x-user-id"];
 
     if (!userId) {
-      return res.status(401).json({ error: "Usuário não autenticado" });
+      return res.status(401).json({
+        error: "Usuário não autenticado",
+      });
     }
 
     const {
@@ -106,7 +110,9 @@ router.put("/store/settings", async (req, res) => {
     });
 
     if (!store) {
-      return res.status(404).json({ error: "Loja não encontrada" });
+      return res.status(404).json({
+        error: "Loja não encontrada",
+      });
     }
 
     // ===============================
@@ -117,9 +123,9 @@ router.put("/store/settings", async (req, res) => {
       data: {
         name: name?.trim(),
         description: description?.trim(),
-        logoUrl,
-        coverImage,
-        address,
+        logoUrl: logoUrl ?? null,
+        coverImage: coverImage ?? null,
+        address: address ?? null,
       },
     });
 
@@ -135,7 +141,9 @@ router.put("/store/settings", async (req, res) => {
         ...(deliveryFee !== undefined && { deliveryFee }),
         ...(minOrderValue !== undefined && { minOrderValue }),
         ...(estimatedTime && { estimatedTime }),
-        ...(whatsapp !== undefined && { whatsapp: whatsapp?.trim() || null }),
+        ...(whatsapp !== undefined && {
+          whatsapp: whatsapp?.trim() || null,
+        }),
       },
       create: {
         storeId: store.id,
@@ -155,8 +163,10 @@ router.put("/store/settings", async (req, res) => {
       settings,
     });
   } catch (error) {
-    console.error("Erro ao salvar StoreSettings:", error);
-    return res.status(500).json({ error: "Erro interno" });
+    console.error("PUT /api/store/settings error:", error);
+    return res.status(500).json({
+      error: "Erro interno",
+    });
   }
 });
 
