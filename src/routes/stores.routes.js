@@ -215,31 +215,64 @@ router.get("/by-subdomain/:subdomain", async (req, res) => {
    PUT /stores/:id
    👉 ATUALIZAR DADOS DA LOJA (MINHA LOJA)
 =================================================== */
-router.put("/:id", async (req, res) => {
+/* ===================================================
+   PUT /stores/:storeId
+   👉 Atualiza dados da loja (Minha Loja)
+=================================================== */
+router.put("/:storeId", async (req, res) => {
   try {
-    const { id } = req.params;
-    const { name, description, logoUrl, coverImage } = req.body;
+    const { storeId } = req.params;
+    const {
+      name,
+      description,
+      logoUrl,
+      coverImage,
+      address,
+    } = req.body;
 
-    if (!id) {
-      return res.status(400).json({
-        error: "ID da store é obrigatório",
+    const userId =
+      req.user?.id ||
+      req.headers["x-user-id"];
+
+    if (!userId) {
+      return res.status(401).json({
+        error: "Usuário não autenticado",
       });
     }
 
-    const store = await prisma.store.update({
-      where: { id },
-      data: {
-        name,
-        description,
-        logoUrl,
-        coverImage,
+    const store = await prisma.store.findFirst({
+      where: {
+        id: storeId,
+        userId,
       },
     });
 
-    return res.json(store);
+    if (!store) {
+      return res.status(404).json({
+        error: "Loja não encontrada",
+      });
+    }
+
+    const updated = await prisma.store.update({
+      where: { id: storeId },
+      data: {
+        name: name?.trim(),
+        description: description?.trim(),
+        logoUrl,
+        coverImage,
+        address,
+      },
+    });
+
+    return res.json({
+      success: true,
+      store: updated,
+    });
   } catch (err) {
-    console.error("PUT /stores/:id error:", err);
-    return res.status(500).json({ error: "Erro ao atualizar loja" });
+    console.error("PUT /stores/:storeId error:", err);
+    return res.status(500).json({
+      error: "Erro interno ao atualizar loja",
+    });
   }
 });
 
